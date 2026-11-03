@@ -1,0 +1,100 @@
+# The nightly update. This is what keeps the live site current.
+#
+#   fetch yesterday's NSE file -> re-solve only that day -> commit
+#   -> Render redeploys on the push -> visitors see fresh numbers
+#
+# Nobody runs anything. The whole chain is this file plus autoDeploy in
+# render.yaml.
+#
+# Why committing the result is the right design rather than a workaround:
+# Render's free tier wipes its disk on every restart, so an app that updated
+# its own files would lose them. The repository is the durable store. It also
+# means the public page only ever serves numbers that were computed by this
+# pipeline and recorded in a commit you can go back and read.
+#
+# A matching verify.yml runs the slow, complete rebuild every Sunday and
+# checks it produces exactly the same files. The fast path is only trusted
+# because that check exists.
+
+name: nightly update
+
+on:
+  schedule:
+    # 13:45 UTC = 19:15 IST. NSE publishes its end-of-day files shortly after
+    # the close, around 18:00 IST, so this leaves comfortable margin.
+    # GitHub's scheduler is best-effort and can run late under load; the job
+    # is safe to run twice and safe to miss, because it works out what is
+    # missing rather than assuming it is exactly one day behind.
+    - cron: "45 13 * * 1-6"
+  workflow_dispatch:          # and a button, for testing
+
+# Needed to push the updated CSVs back. Nothing else is granted.
+permissions:
+  contents: write
+
+concurrency:
+  # If a run is somehow still going, do not start a second one on top of it.
+  group: data-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -r requirements.txt
+
+      - name: What do we have now
+        run: |
+          python -c "
+          import pandas as pd
+          d = pd.read_csv('data/daily_iv.csv', parse_dates=['date'])
+          print('latest before:', d['date'].max().date(), '|', len(d), 'days')
+          "
+
+      # update.py probes every calendar day between the newest file on disk
+      # and today, so a missed night is picked up automatically rather than
+      # leaving a hole. If NSE cannot be reached it exits non-zero and nothing
+      # is committed -- the site keeps yesterday's numbers rather than
+      # publishing a gap.
+      - name: Fetch and rebuild
+        run: python update.py --fast
+
+      - name: What do we have now
+        run: |
+          python -c "
+          import pandas as pd
+          d = pd.read_csv('data/daily_iv.csv', parse_dates=['date'])
+          print('latest after: ', d['date'].max().date(), '|', len(d), 'days')
+          "
+
+      # The tests run after the data changes, not before. A new day that
+      # somehow broke the maths must not reach the site.
+      - name: Tests still pass
+        run: pytest -q
+
+      - name: Commit if anything changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "no change -- nothing new to publish"
+            exit 0
+          fi
+          LATEST=$(python -c "
+          import pandas as pd
+          print(pd.read_csv('data/daily_iv.csv', parse_dates=['date'])['date'].max().date())
+          ")
+          git add -A
+          git commit -m "Data through $LATEST [automated]"
+          git push
+          echo "pushed -- Render will redeploy"

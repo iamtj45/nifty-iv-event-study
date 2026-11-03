@@ -168,6 +168,13 @@ def main():
                          "the newest file, to fill a gap")
     ap.add_argument("--rebuild", action="store_true",
                     help="rebuild even if no new trading day was found")
+    ap.add_argument("--fast", action="store_true",
+                    help="solve only the new days instead of re-solving "
+                         "every file. Produces byte-identical output; the "
+                         "weekly job in CI proves it.")
+    ap.add_argument("--full", action="store_true",
+                    help="force a complete rebuild from every raw file, "
+                         "which is what the weekly check compares against")
     args = ap.parse_args()
 
     latest = latest_downloaded()
@@ -235,10 +242,17 @@ def main():
         print("\n  --download-only: stopping before the rebuild.")
         return
 
+    # --fast re-solves only days missing from daily_iv.csv and reuses
+    # closed trades. Everything downstream -- the event study, the placebo
+    # test, every average -- is recomputed over the complete series either
+    # way, so the two modes differ in work done, not in what they compute.
+    fast = ["--fast"] if args.fast and not args.full else []
     for symbol in INDEXES:
-        run(["build.py", "--symbol", symbol], f"build {symbol}")
+        run(["build.py", "--symbol", symbol] + fast, f"build {symbol}")
     for symbol in INDEXES:
-        run(["backtest.py", "--symbol", symbol], f"backtest {symbol}")
+        run(["backtest.py", "--symbol", symbol] + fast, f"backtest {symbol}")
+    for symbol in INDEXES:
+        run(["direction.py", "--symbol", symbol], f"direction {symbol}")
 
     after = read_summaries()
     new_latest = latest_downloaded()

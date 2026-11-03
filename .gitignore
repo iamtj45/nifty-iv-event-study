@@ -1,5 +1,16 @@
-# Raw NSE files stay on the laptop; only small result files are committed.
-data/raw/
+# The raw NSE files ARE committed, deliberately.
+#
+# They are 86 MB and grow about 21 MB a year -- unremarkable for GitHub,
+# whose soft limit is 1 GB. In exchange, the weekly job in CI can rebuild
+# every number from scratch and check the nightly shortcut has not drifted.
+# Without them that check is impossible, and an unattended nightly update
+# nobody can verify is worse than no automation at all.
+#
+# They are excluded from the Docker image by .dockerignore: the running site
+# reads the computed CSVs and never opens a bhavcopy.
+
+# Source PDFs stay local. rag.py has already turned them into
+# data/chunks.json, which is all the deployed site needs.
 docs/*.pdf
 
 # Secrets

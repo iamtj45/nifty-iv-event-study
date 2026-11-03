@@ -299,10 +299,24 @@ def atm_for_day(day, rows, spot):
     return record, quality
 
 
-def build_daily(spot_series, symbol=SYMBOL):
-    """Everything above, for every trading day on disk."""
+def build_daily(spot_series, symbol=SYMBOL, only_days=None):
+    """Everything above, for every trading day on disk.
+
+    `only_days` restricts the work to a set of dates, which is what makes a
+    nightly update take seconds instead of re-solving four years of options.
+
+    The thing to notice is what it does NOT change. The filtering happens
+    here, on the list of files; every day that is processed goes through the
+    same read_day and atm_for_day as a full rebuild. So the fast path and the
+    slow path cannot disagree about *how* a day is solved, only about which
+    days they bother with -- and the weekly rebuild checks even that.
+    """
     paths = sorted(RAW.glob("*.csv.zip"))
-    if not paths:
+    if only_days is not None:
+        wanted = set(only_days)
+        paths = [p for p in paths
+                 if dt.datetime.strptime(p.stem[:8], "%Y%m%d").date() in wanted]
+    if not paths and only_days is None:
         sys.exit("no bhavcopies in data/raw -- run download.py first")
 
     records, quality_rows = [], []
@@ -543,6 +557,10 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--symbol", default=SYMBOL, choices=sorted(INDEXES),
                     help=f"index to build (default {SYMBOL})")
+    ap.add_argument("--fast", action="store_true",
+                    help="only solve days missing from the existing "
+                         "daily_iv.csv, then recompute everything downstream "
+                         "from the full series")
     args = ap.parse_args()
 
     symbol = args.symbol
@@ -561,15 +579,90 @@ def main():
     events = (pd.read_csv(DATA / "events.csv", parse_dates=["date"])
               .sort_values("date"))
 
-    print(f"{symbol}: daily ATM IV from "
-          f"{len(list(RAW.glob('*.csv.zip')))} bhavcopies")
-    daily, quality = build_daily(spot_series, symbol)
+    # The fast path solves only the days that are not already in
+    # daily_iv.csv, then hands the complete series to the same event study,
+    # placebo and summary code a full rebuild uses. Nothing downstream is
+    # incremental -- those steps are pandas over a thousand rows and take a
+    # moment, so there is no reason to approximate them.
+    #
+    # That is what keeps the two paths honest: the only difference is which
+    # days get their options re-solved, and a solved day is a pure function
+    # of its bhavcopy and its spot price. The weekly rebuild proves it.
+    existing = None
+    only_days = None
+    if args.fast:
+        prior = out_dir / "daily_iv.csv"
+        qprior = out_dir / "quality.csv"
+        if not prior.exists():
+            sys.exit(f"{prior} is missing -- --fast updates an existing "
+                     f"build. Run without --fast first.")
+        existing = pd.read_csv(prior, parse_dates=["date", "expiry",
+                                                   "next_expiry"])
+        have = set(existing["date"].dt.date)
+        # Reading a CSV gives Timestamps; a freshly solved day gives
+        # datetime.date. Concatenating the two makes a column that cannot be
+        # sorted, and writes dates in two different formats. Normalise the
+        # saved rows to match what build_daily produces.
+        for col in ("date", "expiry", "next_expiry"):
+            if col in existing:
+                existing[col] = existing[col].dt.date
+        if qprior.exists():
+            have |= set(pd.read_csv(qprior, parse_dates=["date"])["date"].dt.date)
+        on_disk = {dt.datetime.strptime(p.stem[:8], "%Y%m%d").date()
+                   for p in RAW.glob("*.csv.zip")}
+        only_days = sorted(on_disk - have)
+        print(f"{symbol}: fast update, {len(only_days)} new day(s) to solve")
+        if not only_days:
+            print("  nothing new -- recomputing the study from the existing "
+                  "series anyway, in case events.csv changed")
+    else:
+        print(f"{symbol}: daily ATM IV from "
+              f"{len(list(RAW.glob('*.csv.zip')))} bhavcopies")
+
+    daily, quality = build_daily(spot_series, symbol, only_days)
+
+    if existing is not None:
+        qprior = out_dir / "quality.csv"
+        if qprior.exists():
+            quality = pd.concat(
+                [pd.read_csv(qprior, parse_dates=["date"]), quality],
+                ignore_index=True)
+            quality["date"] = pd.to_datetime(quality["date"]).dt.date
+            quality = (quality.drop_duplicates("date", keep="last")
+                       .sort_values("date").reset_index(drop=True))
+        # The new rows arrive without the vix column the old ones already
+        # have; it is filled for the whole frame below, so drop it here to
+        # keep the concat clean.
+        old = existing.drop(columns=[c for c in ("vix",) if c in existing])
+        daily = (pd.concat([old, daily], ignore_index=True)
+                 .drop_duplicates("date", keep="last")
+                 .sort_values("date").reset_index(drop=True))
 
     daily["vix"] = [
         float(vix_series.loc[pd.Timestamp(d)])
         if pd.Timestamp(d) in vix_series.index else np.nan
         for d in daily["date"]
     ]
+
+    # Write the daily series now, then read it back and use *that* for
+    # everything downstream.
+    #
+    # It looks redundant and it is deliberate. daily_iv.csv is written to four
+    # decimals, so a full rebuild holding full precision in memory computes
+    # the event study from slightly different numbers than a --fast run, which
+    # reads the historical rows back from the file. The gap is about 7e-04 on
+    # a percentage -- meaningless in itself, but it means the two paths can
+    # never be compared by equality, only by an argued tolerance.
+    #
+    # Round-tripping through the file removes the question. Both paths now
+    # compute from the exact numbers the website serves, so the weekly
+    # rebuild can check they match byte for byte instead of "closely enough".
+    daily_path = out_dir / "daily_iv.csv"
+    daily.to_csv(daily_path, index=False, float_format="%.4f")
+    daily = pd.read_csv(daily_path, parse_dates=["date", "expiry",
+                                                 "next_expiry"])
+    for col in ("date", "expiry", "next_expiry"):
+        daily[col] = daily[col].dt.date
 
     print(f"\nEvent study over {len(events)} events")
     results, curves, event_days = event_study(daily, events, spot_series)

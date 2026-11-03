@@ -297,12 +297,24 @@ def run_one(daily, exit_day, cost_points, cost_pct, symbol=SYMBOL):
 
 
 def run_trades(daily, results, events, cost_points, cost_pct,
-               do_normal=True, symbol=SYMBOL):
-    """The rule on every event day, and on every ordinary day for comparison."""
+               do_normal=True, symbol=SYMBOL, skip_days=None):
+    """The rule on every event day, and on every ordinary day for comparison.
+
+    `skip_days` leaves out exit days already present in backtest.csv, which
+    is what turns a nightly update from 450 zip-file reads into one or two.
+
+    As with build.py's fast path, the filtering is the only difference. A
+    day that is computed goes through the same exit_quote and
+    straddle_trade either way, and a closed trade never changes once its
+    two closing prices are known.
+    """
+    skip = set(skip_days or ())
     trades, skipped = [], []
 
     for row in results.itertuples():
         exit_day = row.trading_day.date()
+        if exit_day in skip:
+            continue
         trade, why = run_one(daily, exit_day, cost_points, cost_pct, symbol)
         if trade is None:
             skipped.append(f"    {row.event} ({exit_day}): {why}")
@@ -319,15 +331,19 @@ def run_trades(daily, results, events, cost_points, cost_pct,
         print(f"  control group: {len(normal_days)} ordinary days "
               f"(at least {NORMAL_DAY_GAP} trading days from any event)")
 
-        for n, day in enumerate(normal_days, 1):
+        todo = [d for d in normal_days if d not in skip]
+        if skip:
+            print(f'    {len(normal_days) - len(todo)} already done, '
+                  f'{len(todo)} to compute')
+        for n, day in enumerate(todo, 1):
             trade, _ = run_one(daily, day, cost_points, cost_pct, symbol)
             if trade is None:
                 continue
             trade["group"] = "NORMAL"
             trade["event"] = ""
             trades.append(trade)
-            if n % 100 == 0 or n == len(normal_days):
-                print(f"    {n:>4}/{len(normal_days)} ordinary days", flush=True)
+            if n % 100 == 0 or n == len(todo):
+                print(f"    {n:>4}/{len(todo)} ordinary days", flush=True)
 
     return pd.DataFrame(trades), skipped
 
@@ -424,6 +440,9 @@ def main():
                         help="skip the ordinary-day control group")
     parser.add_argument("--symbol", default=SYMBOL, choices=sorted(INDEXES),
                         help=f"index to backtest (default {SYMBOL})")
+    parser.add_argument("--fast", action="store_true",
+                        help="only compute exit days missing from the "
+                             "existing backtest.csv")
     args = parser.parse_args()
 
     if not RAW.exists() or not any(RAW.glob("*.csv.zip")):
@@ -441,10 +460,47 @@ def main():
     print(f"  cost assumption: {args.cost} points + "
           f"{args.cost_pct * 100:.3f}% of premium traded\n")
 
+    # The fast path reuses trades already in backtest.csv. A closed trade
+    # cannot change: both its prices are end-of-day closes that were final
+    # the moment the market shut. Only the summary is recomputed, over the
+    # whole set, so the averages and the control row stay exact.
+    #
+    # The cost assumption is checked before reusing anything. Changing it
+    # changes every trade's net, so an old file computed at a different cost
+    # must not be mixed with new rows -- it would quietly average two
+    # different strategies together.
+    previous = None
+    skip_days = None
+    if args.fast:
+        prior = out_dir / "backtest.csv"
+        if not prior.exists():
+            sys.exit(f"{prior} is missing -- --fast updates an existing "
+                     f"backtest. Run without --fast first.")
+        previous = pd.read_csv(prior, parse_dates=["entry_day", "exit_day"])
+        same_cost = np.isclose(previous["cost"].iloc[0],
+                               args.cost + args.cost_pct *
+                               (previous["premium_received"].iloc[0]
+                                + previous["premium_paid"].iloc[0]))
+        if not same_cost:
+            print("  cost assumption differs from the saved trades -- "
+                  "recomputing all of them")
+            previous = None
+        else:
+            previous["entry_day"] = previous["entry_day"].dt.date
+            previous["exit_day"] = previous["exit_day"].dt.date
+            skip_days = set(previous["exit_day"])
+            print(f"  reusing {len(previous)} trades already computed")
+
     trades, skipped = run_trades(daily, results, events,
                                  args.cost, args.cost_pct,
                                  do_normal=not args.no_normal,
-                                 symbol=symbol)
+                                 symbol=symbol, skip_days=skip_days)
+
+    if previous is not None:
+        trades = pd.concat([previous, trades], ignore_index=True)
+        trades = (trades.drop_duplicates(["group", "exit_day"], keep="last")
+                  .reset_index(drop=True))
+
     if trades.empty:
         sys.exit("no trades could be built -- check the gaps are filled in")
 
@@ -453,10 +509,20 @@ def main():
         for line in skipped:
             print(line)
 
-    summary = summarise_trades(trades)
+    # Write first, read back, then summarise -- the same round-trip build.py
+    # does, for the same reason. Without a fixed float_format, a reused trade
+    # and a freshly computed one differ by about 1e-14: invisible, but enough
+    # that the weekly rebuild could never check the two paths by equality.
+    # Six decimals on an index point is far finer than anything here needs,
+    # and it makes the question answerable with yes or no.
+    trades = trades.sort_values(["group", "exit_day"]).reset_index(drop=True)
+    trades_path = out_dir / "backtest.csv"
+    trades.to_csv(trades_path, index=False, float_format="%.6f")
+    trades = pd.read_csv(trades_path, parse_dates=["entry_day", "exit_day"])
+    trades["entry_day"] = trades["entry_day"].dt.date
+    trades["exit_day"] = trades["exit_day"].dt.date
 
-    trades = trades.sort_values(["group", "exit_day"])
-    trades.to_csv(out_dir / "backtest.csv", index=False)
+    summary = summarise_trades(trades)
     summary.to_csv(out_dir / "backtest_summary.csv", index=False)
 
     print(f"\n  {len(trades)} trades -> backtest.csv")

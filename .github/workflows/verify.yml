@@ -1,0 +1,113 @@
+# The safety net for the nightly update.
+#
+# nightly.yml takes a shortcut: it re-solves only the days that are new and
+# reuses everything already computed. That shortcut is fast and it has been
+# shown to produce byte-identical output -- but "shown once" is not the same
+# as "still true", and a shortcut that drifts silently on unattended data is
+# the worst kind of wrong.
+#
+# So once a week this throws the shortcut away. It rebuilds every number from
+# the 970-odd raw NSE files, with no reuse at all, and checks the result
+# matches what the nightly runs produced. If the two ever disagree it fails
+# loudly, and the committed data is still the nightly version until a human
+# looks at it.
+#
+# This job changes nothing. It only reports.
+
+name: weekly verification
+
+on:
+  schedule:
+    # 04:00 UTC Sunday, when nothing else is running.
+    - cron: "0 4 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read          # reads only; it must not be able to publish
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -r requirements.txt
+
+      # Keep the committed files, which are the product of incremental runs.
+      - name: Save what the nightly runs produced
+        run: |
+          mkdir -p /tmp/incremental
+          cp -r data/*.csv /tmp/incremental/
+          mkdir -p /tmp/incremental/banknifty
+          cp -r data/banknifty/*.csv /tmp/incremental/banknifty/
+          ls /tmp/incremental | wc -l
+
+      # No --fast anywhere. Every raw file is read and every option re-solved,
+      # exactly as a first run on a clean machine would do it.
+      - name: Rebuild everything from the raw files
+        run: python update.py --full --rebuild
+
+      - name: Do the two agree?
+        run: |
+          python - <<'EOF'
+          import sys, pathlib
+          import pandas as pd
+
+          # Files that must match exactly. quality.csv is excluded: it carries
+          # a note column describing why a day was skipped, which is
+          # commentary rather than a result.
+          CHECK = ["daily_iv", "results", "summary", "placebo", "curves",
+                   "backtest", "backtest_summary", "direction",
+                   "direction_events", "vol_direction"]
+
+          bad = []
+          for folder in ("", "banknifty"):
+              for name in CHECK:
+                  a = pathlib.Path("/tmp/incremental") / folder / f"{name}.csv"
+                  b = pathlib.Path("data") / folder / f"{name}.csv"
+                  label = f"{folder or 'nifty'}/{name}"
+                  if not a.exists() or not b.exists():
+                      print(f"  {label:34} missing on one side, skipped")
+                      continue
+                  ta, tb = a.read_text(), b.read_text()
+                  if ta == tb:
+                      print(f"  {label:34} identical")
+                      continue
+
+                  # Not identical: say by how much, so a failure is
+                  # actionable rather than just alarming.
+                  da, db = pd.read_csv(a), pd.read_csv(b)
+                  if da.shape != db.shape:
+                      bad.append(f"{label}: shape {da.shape} vs {db.shape}")
+                      print(f"  {label:34} DIFFERENT shape "
+                            f"{da.shape} vs {db.shape}")
+                      continue
+                  num = [c for c in da.columns
+                         if da[c].dtype.kind in "fi" and c in db.columns]
+                  worst = (da[num] - db[num]).abs().max().max() if num else 0
+                  bad.append(f"{label}: largest difference {worst:.3e}")
+                  print(f"  {label:34} DIFFERENT, largest {worst:.3e}")
+
+          if bad:
+              print()
+              print("The incremental path and the full rebuild disagree.")
+              print("The committed data came from the incremental path, so it")
+              print("is the one in doubt. Investigate before trusting it.")
+              for line in bad:
+                  print(f"  {line}")
+              sys.exit(1)
+
+          print()
+          print("The fast path and the full rebuild agree exactly.")
+          EOF
+
+      - name: Tests
+        run: pytest -q
