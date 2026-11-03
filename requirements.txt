@@ -1,0 +1,25 @@
+# Data and maths
+pandas>=2.0
+numpy>=1.24
+scipy>=1.10
+requests>=2.31
+yfinance>=0.2.40
+
+# Web app
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.0
+python-dotenv>=1.0
+
+# RAG and LLM
+pypdf>=4.0
+rank_bm25>=0.2.2
+openai>=1.30
+
+# MCP server
+mcp>=1.0
+
+# Tests. Installed in CI, not needed to serve the site -- kept here rather
+# than in a second file because one list that is always right beats two that
+# drift apart.
+pytest>=8.0

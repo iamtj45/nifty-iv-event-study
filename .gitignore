@@ -1,0 +1,18 @@
+# Raw NSE files stay on the laptop; only small result files are committed.
+data/raw/
+docs/*.pdf
+
+# Secrets
+.env
+
+# C++ build output
+cpp/libiv.so
+cpp/libiv.dll
+*.o
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/

@@ -1,0 +1,4 @@
+type,n,avg_iv_before,iv_before_ci_low,iv_before_ci_high,avg_iv_after,avg_change_pct,change_ci_low,change_ci_high,avg_realised_vol,overpriced,move_overpriced,avg_expected_move_to_expiry,avg_expected_move_1d,avg_actual_move,avg_skew_before,avg_premium_before
+BUDGET,5,17.9850,16.3641,19.5452,15.1937,-14.7390,-26.0584,-0.3609,13.3440,3,4,2.3833,0.7524,0.5160,3.6112,1.4554
+ELECTION,1,26.9244,,,35.9969,33.6964,,,17.6589,1,0,3.5564,1.1246,5.9294,1.3276,4.2779
+RBI,23,13.3459,11.7611,15.2180,12.4773,-5.6171,-8.8758,-2.7036,9.8723,19,11,1.6590,0.5589,0.6755,3.6269,0.1872

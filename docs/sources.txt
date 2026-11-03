@@ -1,0 +1,63 @@
+# Documents the question box answers from.
+#
+#   python fetch_docs.py
+#
+# One per line:   DATE | KIND | URL
+#
+#   DATE   the event date, YYYY-MM-DD, matching data/events.csv
+#   KIND   RBI or BUDGET
+#   URL    a direct link to the PDF
+#
+# Where to find them:
+#
+#   RBI     rbi.org.in -> Press Releases -> the Monetary Policy Statement for
+#           that meeting. Open it, then copy the link to the PDF itself (the
+#           address should start with rbidocs.rbi.org.in and end in .PDF).
+#
+#   Budget  indiabudget.gov.in -> the year you want -> Budget Speech.
+#           Only the current year sits at a predictable address; older ones
+#           are in the archive section.
+#
+# Lines starting with # are ignored, so you can work through this list a few
+# at a time and re-run fetch_docs.py whenever you like. Already-downloaded
+# files are skipped.
+#
+# ---------------------------------------------------------------------------
+# One example, already filled in, so you can check the format works:
+
+2025-12-05 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR16331051154700094ACFB40DE08AE141531C.PDF
+
+# ---------------------------------------------------------------------------
+# The remaining 28, in the same order as data/events.csv. Paste a URL after
+# the pipe and delete the # at the start of the line.
+
+# 2023-02-01 | BUDGET |
+# 2023-02-08 | RBI |
+# 2023-04-06 | RBI |
+# 2023-06-08 | RBI |
+# 2023-08-10 | RBI |
+# 2023-10-06 | RBI |
+# 2023-12-08 | RBI |
+# 2024-02-01 | BUDGET |
+# 2024-02-08 | RBI |
+# 2024-04-05 | RBI |
+# 2024-06-07 | RBI |
+# 2024-07-23 | BUDGET |
+# 2024-08-08 | RBI |
+# 2024-10-09 | RBI |
+# 2024-12-06 | RBI |
+# 2025-02-01 | BUDGET |
+# 2025-02-07 | RBI |
+# 2025-04-09 | RBI |
+# 2025-06-06 | RBI |
+# 2025-08-06 | RBI |
+# 2025-10-01 | RBI |
+# 2026-02-01 | BUDGET |
+# 2026-02-06 | RBI |
+# 2026-04-08 | RBI |
+# 2026-06-05 | RBI |
+# 2026-08-05 | RBI |
+# 2026-10-07 | RBI |
+
+# Note: the 2024 election result (2024-06-04) has no official document of this
+# kind, so it is not listed. The question box will say so rather than guess.

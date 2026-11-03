@@ -1,0 +1,1130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nifty IV Event Study</title>
+<meta name="description" content="How implied volatility behaves around the Union Budget, RBI policy meetings and the 2024 election result.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+  /* ===================================================================
+     Colour.
+
+     The two chart-series colours are not chosen by eye. They were run
+     through a palette validator for lightness band, chroma floor,
+     colour-blind separation and contrast against the chart surface, in
+     both modes:
+
+        light   #0A8F9C + #9A5B10    CVD dE 16.5, normal-vision dE 21.4
+        dark    #12A2AF + #C07F22    CVD dE 17.4, normal-vision dE 22.0
+
+     The project's original teal (#0F5C63) failed the chroma floor at
+     0.07 -- as a one-pixel chart line it read as grey rather than as a
+     colour. It survives as --accent for interface chrome, where it is
+     sitting on text-sized type and wants the extra contrast; the
+     brighter step is used only for marks.
+
+     Series colours never carry text. Numbers and labels wear ink tokens;
+     a coloured mark beside them carries the identity.
+     =================================================================== */
+  :root {
+    color-scheme: light;
+    --paper:#FBFAF7; --surface:#FFFFFF; --surface-2:#F4F2EC; --surface-3:#EBE8E0;
+    --ink:#15171A; --muted:#575D64; --faint:#878C93;
+    --rule:#E0DDD4; --rule-soft:#EDEAE3;
+    --accent:#07707B; --accent-w:#0A8F9C14;
+    --series-1:#0A8F9C; --series-2:#9A5B10; --series-3:#5B6166;
+    --good:#0A6E4C; --bad:#A63A2C;
+    --f-display:"Times New Roman", Times, serif;
+    --f-body:"Times New Roman", Times, serif;
+    --f-mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+    --shadow:0 1px 2px #15171a0a, 0 8px 24px -12px #15171a1f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --paper:#0C0E10; --surface:#14171A; --surface-2:#1A1E22; --surface-3:#222A2E;
+      --ink:#E9EBED; --muted:#9BA2A9; --faint:#6E757C;
+      --rule:#262B31; --rule-soft:#1D2226;
+      --accent:#49BCC6; --accent-w:#12A2AF1F;
+      --series-1:#12A2AF; --series-2:#C07F22; --series-3:#8A9298;
+      --good:#39A87B; --bad:#D9705F;
+      --shadow:0 1px 2px #00000040, 0 8px 24px -12px #00000066;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --paper:#0C0E10; --surface:#14171A; --surface-2:#1A1E22; --surface-3:#222A2E;
+    --ink:#E9EBED; --muted:#9BA2A9; --faint:#6E757C;
+    --rule:#262B31; --rule-soft:#1D2226;
+    --accent:#49BCC6; --accent-w:#12A2AF1F;
+    --series-1:#12A2AF; --series-2:#C07F22; --series-3:#8A9298;
+    --good:#39A87B; --bad:#D9705F;
+    --shadow:0 1px 2px #00000040, 0 8px 24px -12px #00000066;
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--f-body); font-size: 17.5px; line-height: 1.54;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding-inline: 28px; padding-block: 0 96px; }
+  @media (max-width: 560px) { .wrap { padding-inline: 16px; } }
+
+  /* ---- sticky bar: index switcher + theme ---- */
+  .topbar {
+    position: sticky; top: 0; z-index: 20;
+    background: color-mix(in srgb, var(--paper) 86%, transparent);
+    backdrop-filter: blur(12px) saturate(140%);
+    border-bottom: 1px solid var(--rule);
+  }
+  .topbar-in {
+    max-width: 1080px; margin: 0 auto; padding: 11px 28px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  }
+  @media (max-width: 560px) { .topbar-in { padding-inline: 16px; } }
+  .brand {
+    font-family: var(--f-mono); font-size: 11px; font-weight: 500;
+    letter-spacing: .14em; text-transform: uppercase; color: var(--faint);
+    margin-right: auto; white-space: nowrap;
+  }
+  .brand b { color: var(--accent); font-weight: 500; }
+
+  .seg { display: flex; gap: 2px; padding: 2px; background: var(--surface-2);
+         border: 1px solid var(--rule); border-radius: 7px; }
+  .seg button {
+    font-family: var(--f-mono); font-size: 11.5px; letter-spacing: .04em;
+    padding: 6px 13px; cursor: pointer; border: 0; border-radius: 5px;
+    background: transparent; color: var(--muted); white-space: nowrap;
+    transition: background .14s, color .14s;
+  }
+  .seg button:hover { color: var(--ink); }
+  .seg button[aria-selected="true"] {
+    background: var(--surface); color: var(--ink); font-weight: 500;
+    box-shadow: var(--shadow);
+  }
+  .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .icon-btn {
+    display: grid; place-items: center; width: 33px; height: 33px;
+    border: 1px solid var(--rule); border-radius: 7px; cursor: pointer;
+    background: var(--surface-2); color: var(--muted); font-size: 14px;
+    line-height: 1; transition: color .14s, border-color .14s;
+  }
+  .icon-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  /* ---- masthead ---- */
+  header.mast { padding-block: 56px 34px; }
+  .eyebrow {
+    font-family: var(--f-mono); font-size: 11px; letter-spacing: .15em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 16px;
+  }
+  h1 {
+    font-family: var(--f-display); font-weight: 400; margin: 0 0 14px;
+    font-size: clamp(2.5rem, 7vw, 3.9rem); line-height: 1.06;
+    letter-spacing: -.008em; text-wrap: balance;
+  }
+  .sub { color: var(--muted); margin: 0 0 24px; max-width: 56ch; font-size: 1.05rem; }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 8px 14px;
+    font-family: var(--f-mono); font-size: 11.5px; color: var(--faint);
+  }
+  .meta span {
+    border: 1px solid var(--rule-soft); border-radius: 5px;
+    padding: 4px 10px; background: var(--surface);
+  }
+  .meta b { font-weight: 500; color: var(--muted); }
+
+  /* ---- event tabs ---- */
+  .tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 30px; }
+  .tab {
+    font-family: var(--f-mono); font-size: 11.5px; letter-spacing: .05em;
+    padding: 9px 16px; cursor: pointer; border-radius: 7px;
+    background: var(--surface); color: var(--muted);
+    border: 1px solid var(--rule);
+    transition: color .14s, border-color .14s, background .14s;
+  }
+  .tab:hover { border-color: var(--accent); color: var(--accent); }
+  .tab[aria-selected="true"] {
+    background: var(--ink); border-color: var(--ink); color: var(--paper);
+    font-weight: 500;
+  }
+  .tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---- the hero finding: a number, not a chart ---- */
+  .hero {
+    display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr);
+    gap: 34px; align-items: center;
+    background: var(--surface); border: 1px solid var(--rule);
+    border-radius: 14px; padding: 32px 34px; margin-bottom: 26px;
+    box-shadow: var(--shadow);
+  }
+  @media (max-width: 680px) { .hero { grid-template-columns: 1fr; gap: 20px; padding: 24px; } }
+  .hero-fig {
+    font-family: var(--f-display); font-weight: 400; line-height: .92;
+    font-size: clamp(3.2rem, 11vw, 5rem); letter-spacing: -.03em;
+    font-variant-numeric: tabular-nums; display: block;
+  }
+  .hero-arrow {
+    font-size: .36em; vertical-align: .46em; margin-right: .1em;
+    font-family: var(--f-body);
+  }
+  .hero-arrow.down { color: var(--series-1); }
+  .hero-arrow.up { color: var(--series-2); }
+  .hero-cap {
+    font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--faint); margin: 10px 0 0;
+  }
+  .hero-body p { margin: 0 0 11px; max-width: 54ch; }
+  .hero-body p:last-child { margin: 0; }
+  .hero-body .verdict {
+    font-family: var(--f-mono); font-size: 11.5px; display: inline-flex;
+    align-items: center; gap: 7px; padding: 5px 11px; border-radius: 6px;
+    border: 1px solid; margin-top: 4px;
+  }
+  .verdict.solid { color: var(--good); border-color: color-mix(in srgb, var(--good) 40%, transparent); background: color-mix(in srgb, var(--good) 8%, transparent); }
+  .verdict.weak  { color: var(--series-2); border-color: color-mix(in srgb, var(--series-2) 40%, transparent); background: color-mix(in srgb, var(--series-2) 8%, transparent); }
+
+  /* ---- stat tiles ---- */
+  .cards {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px; margin-bottom: 38px;
+  }
+  @media (max-width: 860px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 520px) { .cards { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--surface); border: 1px solid var(--rule);
+    border-radius: 11px; padding: 16px 17px 15px;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .card .k {
+    font-family: var(--f-mono); font-size: 10px; letter-spacing: .11em;
+    text-transform: uppercase; color: var(--faint);
+  }
+  .card .v {
+    font-family: var(--f-mono); font-size: 1.5rem; font-weight: 500;
+    font-variant-numeric: tabular-nums; letter-spacing: -.02em; line-height: 1.1;
+  }
+  .card .s { font-size: 14px; color: var(--muted); line-height: 1.42; }
+  /* Status, not series: a glyph carries the meaning as well as the colour. */
+  .v.good::before { content: "▾ "; color: var(--good); font-size: .8em; }
+  .v.odd::before  { content: "▴ "; color: var(--bad); font-size: .8em; }
+
+  /* ---- sections ---- */
+  section { margin-block: 52px; }
+  h2 {
+    font-family: var(--f-display); font-weight: 700; font-size: 1.85rem;
+    margin: 0 0 7px; letter-spacing: -.004em; line-height: 1.18;
+  }
+  .section-note { color: var(--muted); font-size: 15.5px; margin: 0 0 20px; max-width: 60ch; }
+  .sub-h {
+    font-family: var(--f-display); font-weight: 700; font-size: 1.3rem;
+    margin: 36px 0 6px; letter-spacing: -.004em;
+  }
+
+  /* ---- figures ---- */
+  figure {
+    margin: 0 0 20px; background: var(--surface);
+    border: 1px solid var(--rule); border-radius: 12px; overflow: hidden;
+  }
+  .chart-box { position: relative; height: 330px; padding: 18px 16px 8px; }
+  .chart-box.short { height: 190px; }
+  figcaption {
+    border-top: 1px solid var(--rule-soft); padding: 13px 20px;
+    font-size: 14.5px; color: var(--muted); background: var(--surface-2);
+  }
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 7px 20px; padding: 14px 20px 0;
+    font-family: var(--f-mono); font-size: 11.5px; color: var(--muted);
+  }
+  .legend i {
+    display: inline-block; width: 18px; height: 3px; border-radius: 2px;
+    margin-right: 7px; vertical-align: 2px;
+  }
+
+  /* ---- tables ---- */
+  .table-scroll {
+    overflow-x: auto; border: 1px solid var(--rule); border-radius: 12px;
+    background: var(--surface);
+  }
+  table { border-collapse: collapse; width: 100%; min-width: 660px; font-size: 13.5px; }
+  th, td {
+    text-align: right; padding: 11px 16px;
+    border-bottom: 1px solid var(--rule-soft);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  th:first-child, td:first-child { text-align: left; }
+  thead th {
+    position: sticky; top: 0; background: var(--surface-2);
+    font-family: var(--f-mono); font-size: 10px; font-weight: 500;
+    letter-spacing: .07em; text-transform: uppercase; color: var(--faint);
+    border-bottom: 1px solid var(--rule);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: var(--surface-2); }
+  td.d { font-family: var(--f-mono); font-size: 12.5px; }
+  td.fell { color: var(--series-1); }
+  td.rose { color: var(--series-2); }
+  td.pos { color: var(--good); }
+  td.neg { color: var(--bad); }
+  tr.control td {
+    border-top: 2px solid var(--rule); background: var(--surface-2);
+    font-weight: 600;
+  }
+  tr.control:hover td { background: var(--surface-3); }
+  .pill {
+    font-family: var(--f-mono); font-size: 10.5px; letter-spacing: .06em;
+    padding: 3px 9px; border-radius: 20px; border: 1px solid;
+  }
+  .pill.yes { color: var(--good); border-color: color-mix(in srgb, var(--good) 40%, transparent); }
+  .pill.no  { color: var(--faint); border-color: var(--rule); }
+
+  /* ---- ask ---- */
+  .ask {
+    border: 1px solid var(--rule); border-radius: 12px; background: var(--surface);
+    padding: 22px 24px;
+  }
+  .ask-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 11px; }
+  .ask input {
+    flex: 1 1 280px; font-family: var(--f-body); font-size: 16.5px;
+    padding: 11px 14px; border: 1px solid var(--rule); border-radius: 8px;
+    background: var(--paper); color: var(--ink);
+  }
+  .ask input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .ask button {
+    font-family: var(--f-mono); font-size: 12px; letter-spacing: .07em;
+    text-transform: uppercase; padding: 11px 22px; cursor: pointer;
+    border: 1px solid var(--ink); border-radius: 8px;
+    background: var(--ink); color: var(--paper); font-weight: 500;
+  }
+  .ask button:hover { background: var(--accent); border-color: var(--accent); }
+  .ask button[disabled] { opacity: .45; cursor: not-allowed; }
+  .answer {
+    margin-top: 15px; font-size: 16.5px; color: var(--ink);
+    white-space: pre-wrap; min-height: 1.4em;
+  }
+  .answer:empty { display: none; }
+
+  .status { font-family: var(--f-mono); font-size: 13px; color: var(--muted); padding: 26px 0; }
+
+  footer {
+    margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--rule);
+    font-family: var(--f-mono); font-size: 11.5px; color: var(--faint);
+    line-height: 1.8;
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-in">
+    <span class="brand">Nifty IV <b>Event Study</b></span>
+    <div class="seg" id="indexbar" role="tablist" aria-label="Index"></div>
+    <button class="icon-btn" id="themeBtn" type="button"
+            aria-label="Switch between light and dark">◐</button>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header class="mast">
+    <p class="eyebrow">NSE end-of-day option data · 2022–2026</p>
+    <h1>What the market charges for knowing nothing</h1>
+    <p class="sub" id="subline">
+      How Nifty implied volatility behaves around the Union Budget, RBI policy
+      meetings and the 2024 election result.
+    </p>
+    <div class="meta" id="meta"><span>loading…</span></div>
+  </header>
+
+  <div class="tabs" id="tabs" role="tablist" aria-label="Event type"></div>
+
+  <div id="panel" class="status">Loading the results…</div>
+
+  <section id="dirSection" hidden>
+    <h2>Can you predict which way?</h2>
+    <p class="section-note">
+      Everything else here measures how far the index moves, not which way —
+      a straddle seller does not care about direction. This is the question
+      most people arrive with, so it is worth answering rather than skirting.
+      Read the ordinary-days row first: shares drift gently upward, so an
+      event has to beat that, not zero.
+    </p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Group</th><th>Events</th><th>Up</th><th>Down</th>
+            <th>% up</th><th>Avg move</th><th>95% range</th>
+            <th>Coin-flip p</th><th>Verdict</th>
+          </tr>
+        </thead>
+        <tbody id="dirBody"></tbody>
+      </table>
+    </div>
+    <p class="section-note" id="dirNote" style="margin-top:16px"></p>
+
+    <h3 class="sub-h">Does volatility itself tell you the direction?</h3>
+    <p class="section-note">
+      A different question from the one above. Not "does a scheduled event
+      predict direction", but "when fear moves, which way does the Nifty
+      market move with it". The two horizons give opposite answers, which is
+      the point of showing both.
+    </p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Measure</th><th>Horizon</th><th>Value</th><th>Days</th>
+              <th>What it means</th></tr>
+        </thead>
+        <tbody id="volDirBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="btSection" hidden>
+    <h2>Could you have traded it?</h2>
+    <p class="section-note">
+      One rule, fixed in advance: sell the at-the-money straddle at the close
+      the day before the event, buy it back at the close on the event day.
+      Profit in index points, after costs. The same rule runs on ordinary days
+      — an event group that does not beat that row has no edge, whatever its
+      average looks like alone.
+    </p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Group</th><th>Trades</th><th>Avg net</th><th>Median</th>
+            <th>Won</th><th>Worst loss</th><th>Worst day</th>
+            <th>Break-even cost</th>
+          </tr>
+        </thead>
+        <tbody id="btBody"></tbody>
+      </table>
+    </div>
+    <p class="section-note" id="btNote" style="margin-top:16px"></p>
+  </section>
+
+  <section>
+    <h2 id="vixHead">Our IV against India VIX</h2>
+    <p class="section-note" id="vixIntro">
+      NSE publishes its own volatility index using a different method — many
+      strikes over 30 days, where we use one near-dated strike. If our solver
+      works, the two should move together.
+    </p>
+    <figure>
+      <div class="legend" id="vixLegend"></div>
+      <div class="chart-box"><canvas id="vixChart"></canvas></div>
+      <figcaption id="vixNote">Loading…</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Ask about the results</h2>
+    <p class="section-note">
+      Answers come from the tables above and from RBI statements and Budget
+      speeches, with the document and page cited. The model is given the
+      numbers — it never calculates one.
+    </p>
+    <div class="ask">
+      <label for="q" style="font-size:13px;color:var(--muted)">Your question</label>
+      <div class="ask-row">
+        <input id="q" type="text" maxlength="500"
+               placeholder="What happened to IV on the day of the July 2024 Budget?">
+        <button id="askBtn" type="button">Ask</button>
+      </div>
+      <div class="answer" id="answer"></div>
+    </div>
+  </section>
+
+  <footer id="footer"></footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var LABELS = { RBI: "RBI policy", BUDGET: "Union Budget", ELECTION: "Election result" };
+  var INDEX_LABELS = { NIFTY: "Nifty", BANKNIFTY: "Bank Nifty" };
+  var current = null, currentIndex = "NIFTY", indexMeta = null;
+  var ivChart = null, skewChart = null, vixChart = null;
+
+  function css(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+  function num(v, digits, suffix) {
+    if (v === null || v === undefined || (typeof v === "number" && isNaN(v))) return "—";
+    return v.toFixed(digits === undefined ? 2 : digits) + (suffix || "");
+  }
+  function idxName(k) { return INDEX_LABELS[k] || k; }
+  function q(prefix) { return prefix + "index=" + encodeURIComponent(currentIndex); }
+
+  // Every value from the server is written with textContent, never innerHTML.
+  // The data is ours, but an event name reaching the page as markup would be a
+  // hole that only shows up once something in events.csv contains a "<".
+  function el(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined && text !== null) node.textContent = text;
+    return node;
+  }
+
+  function get(url) {
+    return fetch(url).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    });
+  }
+
+  // ---- theme ----
+
+  function applyTheme(mode) {
+    if (mode) document.documentElement.setAttribute("data-theme", mode);
+    else document.documentElement.removeAttribute("data-theme");
+    try { if (mode) localStorage.setItem("theme", mode); else localStorage.removeItem("theme"); }
+    catch (e) { /* private window: the toggle still works for this visit */ }
+    redrawAll();
+  }
+
+  function initTheme() {
+    var saved = null;
+    try { saved = localStorage.getItem("theme"); } catch (e) {}
+    if (saved) document.documentElement.setAttribute("data-theme", saved);
+    document.getElementById("themeBtn").addEventListener("click", function () {
+      var dark = document.documentElement.getAttribute("data-theme") === "dark"
+        || (!document.documentElement.getAttribute("data-theme")
+            && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      applyTheme(dark ? "light" : "dark");
+    });
+  }
+
+  // Chart.js bakes colours in at construction, so a theme change has to
+  // rebuild them rather than just restyle the page.
+  function redrawAll() {
+    if (!indexMeta) return;
+    selectIndex(currentIndex);
+  }
+
+  // ---- chart plumbing ----
+
+  // Labels the last point of each series directly, so identity does not rest
+  // on the legend alone. Drawn only where a series actually ends, and skipped
+  // on narrow screens where there is no room for it.
+  var endLabels = {
+    id: "endLabels",
+    afterDatasetsDraw: function (chart) {
+      if (chart.width < 520) return;
+      var ctx = chart.ctx;
+      ctx.save();
+      ctx.font = "500 11px " + css("--f-mono").replace(/"/g, "");
+      ctx.textBaseline = "middle";
+      chart.data.datasets.forEach(function (ds, i) {
+        var meta = chart.getDatasetMeta(i);
+        if (meta.hidden) return;
+        var pts = meta.data.filter(function (p, j) {
+          return ds.data[j] !== null && ds.data[j] !== undefined;
+        });
+        if (!pts.length) return;
+        var last = pts[pts.length - 1];
+        ctx.fillStyle = ds.borderColor;
+        ctx.fillText(" " + ds.label, last.x + 4, last.y);
+      });
+      ctx.restore();
+    }
+  };
+
+  // A crosshair on hover. A line chart that cannot be read at a point is
+  // a picture of data rather than data.
+  var crosshair = {
+    id: "crosshair",
+    afterDatasetsDraw: function (chart) {
+      var active = chart.tooltip && chart.tooltip.getActiveElements
+        ? chart.tooltip.getActiveElements() : [];
+      if (!active.length) return;
+      var x = active[0].element.x, area = chart.chartArea, ctx = chart.ctx;
+      ctx.save();
+      ctx.strokeStyle = css("--faint");
+      ctx.lineWidth = 1;
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath();
+      ctx.moveTo(x, area.top);
+      ctx.lineTo(x, area.bottom);
+      ctx.stroke();
+      ctx.restore();
+    }
+  };
+
+  function chartOptions(opts) {
+    var ink = css("--muted"), grid = css("--rule-soft"), surf = css("--surface");
+    return {
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: { right: opts.labelRoom ? 86 : 8, top: 4 } },
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },          // drawn in HTML, outside the canvas
+        tooltip: {
+          backgroundColor: surf, titleColor: css("--ink"), bodyColor: css("--ink"),
+          borderColor: css("--rule"), borderWidth: 1, padding: 11,
+          displayColors: true, boxWidth: 9, boxHeight: 9, cornerRadius: 7,
+          titleFont: { family: css("--f-mono").replace(/"/g, ""), size: 11 },
+          bodyFont: { family: css("--f-mono").replace(/"/g, ""), size: 12 },
+          callbacks: {
+            title: function (items) { return opts.tipTitle ? opts.tipTitle(items) : items[0].label; },
+            label: function (c) {
+              return c.dataset.label + "  " +
+                (c.parsed.y === null ? "—" : c.parsed.y.toFixed(2)) + (opts.unit || "");
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: opts.xTitle ? { display: true, text: opts.xTitle, color: css("--faint"),
+                                 font: { size: 10.5 } } : { display: false },
+          ticks: { color: ink, font: { size: 10.5 }, maxRotation: 0, autoSkipPadding: 18 },
+          grid: { display: false }, border: { color: grid }
+        },
+        y: {
+          title: opts.yTitle ? { display: true, text: opts.yTitle, color: css("--faint"),
+                                 font: { size: 10.5 } } : { display: false },
+          ticks: { color: ink, font: { size: 10.5 }, padding: 6 },
+          grid: { color: grid, drawTicks: false }, border: { display: false }
+        }
+      }
+    };
+  }
+
+  function legendInto(node, entries) {
+    node.textContent = "";
+    entries.forEach(function (e) {
+      var span = el("span");
+      var swatch = el("i");
+      swatch.style.background = e.color;
+      if (e.dashed) swatch.style.background =
+        "repeating-linear-gradient(90deg," + e.color + " 0 5px, transparent 5px 9px)";
+      span.appendChild(swatch);
+      span.appendChild(document.createTextNode(e.label));
+      node.appendChild(span);
+    });
+  }
+
+  function line(label, data, color, dashed) {
+    return {
+      label: label, data: data, borderColor: color, backgroundColor: color,
+      borderWidth: 2, borderDash: dashed ? [5, 4] : undefined,
+      pointRadius: 0, pointHoverRadius: 4, pointHoverBorderWidth: 2,
+      pointHoverBorderColor: css("--surface"), tension: 0.15
+    };
+  }
+
+  // ---- the panel for one event type ----
+
+  function renderPanel(data) {
+    var s = data.summary, p = data.placebo;
+    var panel = document.getElementById("panel");
+    panel.className = "";
+    panel.textContent = "";
+
+    var crush = s.avg_change_pct;
+    var rose = crush > 0;
+    var hasP = p && p.percentile_vs_normal !== null;
+
+    // A single headline number is the right form here: one value, no
+    // comparison, no series. A chart of it would be a chart of one bar.
+    var hero = el("div", "hero");
+    var left = el("div");
+    var fig = el("span", "hero-fig");
+    fig.appendChild(el("span", "hero-arrow " + (rose ? "up" : "down"),
+                       rose ? "▲" : "▼"));
+    fig.appendChild(document.createTextNode(
+      (rose ? "+" : "−") + num(Math.abs(crush), 1) + "%"));
+    left.appendChild(fig);
+    left.appendChild(el("p", "hero-cap",
+      "implied volatility, event day vs the day before"));
+    hero.appendChild(left);
+
+    var body = el("div", "hero-body");
+    body.appendChild(el("p",
+      null,
+      "Across " + s.n + " " + (LABELS[data.type] || data.type) +
+      (s.n === 1 ? " event" : " events") + ", the market charged " +
+      num(s.avg_iv_before, 2) + "% of expected volatility beforehand. " +
+      idxName(data.index) + " then delivered " + num(s.avg_realised_vol, 2) +
+      "%. Options were overpriced in " + s.overpriced + " of " + s.n + "."));
+
+    if (hasP) {
+      var solid = p.percentile_vs_normal < 5 || p.percentile_vs_normal > 95;
+      var v = el("span", "verdict " + (solid ? "solid" : "weak"),
+        (solid ? "✓ " : "~ ") + "placebo " + num(p.percentile_vs_normal, 2) +
+        " percentile of " + p.normal_days + " ordinary days");
+      body.appendChild(v);
+    }
+    hero.appendChild(body);
+    panel.appendChild(hero);
+
+    var cards = el("div", "cards");
+    function card(k, v, sub, tone) {
+      var c = el("div", "card");
+      c.appendChild(el("span", "k", k));
+      c.appendChild(el("span", "v" + (tone ? " " + tone : ""), v));
+      if (sub) c.appendChild(el("span", "s", sub));
+      cards.appendChild(c);
+    }
+    card("IV change on the day", num(crush, 2) + "%",
+         s.change_ci_low === null ? "only one event — no range possible"
+           : "95% range " + num(s.change_ci_low, 1) + "% to " + num(s.change_ci_high, 1) + "%",
+         rose ? "odd" : "good");
+    card("Charged beforehand", num(s.avg_iv_before, 2) + "%",
+         "against " + num(s.avg_realised_vol, 2) + "% delivered");
+    card("Overpriced", s.overpriced + " / " + s.n, "by realised volatility");
+    card("Placebo percentile", hasP ? num(p.percentile_vs_normal, 2) : "—",
+         hasP ? "of " + p.normal_days + " ordinary days" : "single event");
+    card("Skew, day before", num(s.avg_skew_before, 2), "put IV minus call IV");
+    card("Event premium", num(s.avg_premium_before, 2),
+         "extra IV in the event's own expiry");
+    panel.appendChild(cards);
+
+    panel.appendChild(buildIvFigure(data));
+    panel.appendChild(buildSkewFigure(data));
+    panel.appendChild(buildEventsTable(data));
+  }
+
+  // ---- the IV path ----
+  //
+  // Two charts rather than one with two y-axes. Implied volatility sits
+  // around 13% and skew around 3 IV points; putting them on separate scales
+  // in one frame lets the reader believe any crossing or divergence they
+  // happen to see, none of which means anything. Same x-axis, stacked, one
+  // scale each.
+
+  function buildIvFigure(data) {
+    var fig = el("figure");
+    legendInto(fig.appendChild(el("div", "legend")), [
+      { label: "Near expiry", color: css("--series-1") },
+      { label: "Next expiry", color: css("--series-3"), dashed: true }
+    ]);
+    var box = el("div", "chart-box");
+    var canvas = document.createElement("canvas");
+    box.appendChild(canvas);
+    fig.appendChild(box);
+
+    var first = data.curve.length ? data.curve[0].iv : null;
+    var atEvent = null, before = null;
+    data.curve.forEach(function (row) {
+      if (row.offset === 0) atEvent = row.iv;
+      if (row.offset === -1) before = row.iv;
+    });
+    var runUp = (first && before) ? (before / first - 1) * 100 : null;
+    var crush = (before && atEvent) ? (atEvent / before - 1) * 100 : null;
+
+    fig.appendChild(el("figcaption", null,
+      "Average ATM implied volatility, 10 trading days either side of the event. " +
+      (runUp === null ? "" :
+        "Run-up " + num(runUp, 1) + "% from day −10 to day −1, then " +
+        num(crush, 1) + "% on the day itself. The gap between the two lines " +
+        "is what traders paid for this event alone rather than for the weeks after.")));
+
+    setTimeout(function () {
+      if (ivChart) ivChart.destroy();
+      ivChart = new Chart(canvas, {
+        type: "line",
+        data: {
+          labels: data.curve.map(function (r) { return r.offset; }),
+          datasets: [
+            line("Near expiry", data.curve.map(function (r) { return r.iv; }), css("--series-1")),
+            line("Next expiry", data.curve.map(function (r) { return r.next_iv; }), css("--series-3"), true)
+          ]
+        },
+        options: chartOptions({
+          xTitle: "trading days from the event", yTitle: "implied volatility %",
+          unit: "%", labelRoom: true,
+          tipTitle: function (items) {
+            var d = Number(items[0].label);
+            return d === 0 ? "event day" : (d > 0 ? "+" : "") + d + " days";
+          }
+        }),
+        plugins: [endLabels, crosshair]
+      });
+    }, 0);
+    return fig;
+  }
+
+  function buildSkewFigure(data) {
+    var fig = el("figure");
+    var box = el("div", "chart-box short");
+    var canvas = document.createElement("canvas");
+    box.appendChild(canvas);
+    fig.appendChild(box);
+    fig.appendChild(el("figcaption", null,
+      "Skew over the same window: the implied volatility of a put 5% below " +
+      "spot minus a call 5% above. Higher means crash protection costs more " +
+      "than upside — a direct reading of which way the market is worried."));
+
+    setTimeout(function () {
+      if (skewChart) skewChart.destroy();
+      skewChart = new Chart(canvas, {
+        type: "line",
+        data: {
+          labels: data.curve.map(function (r) { return r.offset; }),
+          datasets: [line("Skew", data.curve.map(function (r) { return r.skew; }),
+                          css("--series-2"))]
+        },
+        options: chartOptions({
+          xTitle: "", yTitle: "IV points", unit: "",
+          tipTitle: function (items) {
+            var d = Number(items[0].label);
+            return d === 0 ? "event day" : (d > 0 ? "+" : "") + d + " days";
+          }
+        }),
+        plugins: [crosshair]
+      });
+    }, 0);
+    return fig;
+  }
+
+  function buildEventsTable(data) {
+    var wrap = el("div", "table-scroll");
+    var table = el("table");
+    var head = el("thead"), hr = el("tr");
+    ["Event", "Date", "IV before", "IV on day", "Change", "Realised after", "Overpriced"]
+      .forEach(function (h) { hr.appendChild(el("th", null, h)); });
+    head.appendChild(hr);
+    table.appendChild(head);
+
+    var body = el("tbody");
+    data.events.forEach(function (ev) {
+      var tr = el("tr");
+      tr.appendChild(el("td", null, ev.event));
+      tr.appendChild(el("td", "d", ev.event_date));
+      tr.appendChild(el("td", "d", num(ev.iv_before, 2) + "%"));
+      tr.appendChild(el("td", "d", num(ev.iv_after, 2) + "%"));
+      tr.appendChild(el("td", "d " + (ev.change_pct < 0 ? "fell" : "rose"),
+                        num(ev.change_pct, 2) + "%"));
+      tr.appendChild(el("td", "d", num(ev.realised_vol, 2) + "%"));
+      var cell = el("td");
+      cell.appendChild(el("span", "pill " + (ev.overpriced ? "yes" : "no"),
+                          ev.overpriced ? "yes" : "no"));
+      tr.appendChild(cell);
+      body.appendChild(tr);
+    });
+    table.appendChild(body);
+    wrap.appendChild(table);
+    return wrap;
+  }
+
+  // ---- the India VIX check ----
+
+  function drawVix(data) {
+    var native = data.vix_is_native;
+
+    document.getElementById("vixHead").textContent =
+      native ? "Our IV against India VIX" : "Bank Nifty IV against India VIX";
+
+    // India VIX is a Nifty measure and NSE publishes no Bank Nifty
+    // equivalent, so for Bank Nifty this chart is context, not the
+    // independent validation it is for Nifty. Saying so on the page matters
+    // more than the chart does.
+    document.getElementById("vixIntro").textContent = native
+      ? "NSE publishes its own volatility index using a different method — " +
+        "many strikes over 30 days, where we use one near-dated strike. " +
+        "If our solver works, the two should move together."
+      : "India VIX measures Nifty, not Bank Nifty — NSE publishes no Bank " +
+        "Nifty volatility index, so there is no independent check of this " +
+        "series. Shown for context only. Bank Nifty should sit above it, " +
+        "because a single-sector index moves more than a diversified one.";
+
+    legendInto(document.getElementById("vixLegend"), [
+      { label: native ? "Our ATM IV" : "Bank Nifty ATM IV", color: css("--series-1") },
+      { label: "India VIX", color: css("--series-2") }
+    ]);
+
+    if (vixChart) vixChart.destroy();
+    vixChart = new Chart(document.getElementById("vixChart"), {
+      type: "line",
+      data: {
+        labels: data.points.map(function (p) { return p.date; }),
+        datasets: [
+          line(native ? "Our ATM IV" : "Bank Nifty IV",
+               data.points.map(function (p) { return p.atm_iv; }), css("--series-1")),
+          line("India VIX",
+               data.points.map(function (p) { return p.vix; }), css("--series-2"))
+        ]
+      },
+      options: chartOptions({ yTitle: "volatility %", unit: "%", labelRoom: true }),
+      plugins: [endLabels, crosshair]
+    });
+
+    document.getElementById("vixNote").textContent =
+      data.correlation === null ? "Not enough overlap to correlate."
+        : "Correlation " + data.correlation.toFixed(3) + " across " + data.n +
+          " trading days." +
+          (native
+            ? " A gap of a point or two is expected: India VIX uses many " +
+              "strikes over 30 days, we use one near-dated strike."
+            : " Not a validation — both are being compared against a Nifty index.");
+  }
+
+  // ---- direction ----
+
+  function renderDirection(data) {
+    var body = document.getElementById("dirBody");
+    body.textContent = "";
+
+    var rows = data.groups.slice();
+    if (data.baseline) rows.push(data.baseline);
+
+    rows.forEach(function (g) {
+      var isBase = g.type === "ORDINARY";
+      var tr = el("tr", isBase ? "control" : null);
+      function cell(text, cls) { tr.appendChild(el("td", cls, text)); }
+
+      cell(isBase ? "Ordinary days" : (LABELS[g.type] || g.type));
+      cell(String(g.n), "d");
+      cell(String(g.up), "d");
+      cell(String(g.down), "d");
+      cell(g.pct_up === null ? "—" : num(g.pct_up, 1) + "%", "d");
+      // Direction is polarity, not good or bad, so the two palette poles
+      // mark it rather than green and red.
+      cell(num(g.mean_move, 3) + "%",
+           "d " + (g.mean_move < 0 ? "rose" : "fell"));
+      cell(g.ci_low === null ? "—"
+             : num(g.ci_low, 2) + " to " + num(g.ci_high, 2), "d");
+      cell(g.sign_test_p === null ? "—" : num(g.sign_test_p, 3), "d");
+      cell(g.verdict || "");
+      body.appendChild(tr);
+    });
+
+    var rbi = data.groups.filter(function (g) { return g.type === "RBI"; })[0];
+    var base = data.baseline;
+    var note = "“Coin-flip p” is the chance of a split this " +
+      "lopsided if direction were random. A big number means no signal.";
+    if (rbi && base) {
+      note += " RBI days rose " + num(rbi.pct_up, 1) + "% of the time against " +
+        num(base.pct_up, 1) + "% on ordinary days — so knowing a meeting is " +
+        "tomorrow leaves you with less directional information, not more. " +
+        "The decision is in the price before it is announced.";
+    }
+    note += " Groups with only a handful of events cannot reach significance " +
+      "whatever they show: with five Budgets the smallest possible p is 0.063.";
+    document.getElementById("dirNote").textContent = note;
+    var vd = document.getElementById("volDirBody");
+    vd.textContent = "";
+    (data.volatility_direction || []).forEach(function (r) {
+      var tr = el("tr", r.horizon === "next day" ? "control" : null);
+      tr.appendChild(el("td", null, r.measure));
+      tr.appendChild(el("td", "d", r.horizon));
+      // A correlation and a percentage are different animals; the measure
+      // name says which, so the cell only needs the number.
+      tr.appendChild(el("td", "d", num(r.value, Math.abs(r.value) < 1 ? 3 : 1)));
+      tr.appendChild(el("td", "d", String(r.n)));
+      tr.appendChild(el("td", null, r.note || ""));
+      vd.appendChild(tr);
+    });
+
+    document.getElementById("dirSection").hidden = false;
+  }
+
+  function loadDirection() {
+    var section = document.getElementById("dirSection");
+    if (indexMeta && indexMeta.has_direction &&
+        indexMeta.has_direction.indexOf(currentIndex) < 0) {
+      section.hidden = true;
+      return;
+    }
+    get(q("/api/direction?")).then(renderDirection).catch(function () {
+      section.hidden = true;
+    });
+  }
+
+  // ---- the backtest ----
+
+  function renderBacktest(data) {
+    var body = document.getElementById("btBody");
+    body.textContent = "";
+
+    var rows = data.groups.slice();
+    if (data.control) rows.push(data.control);
+
+    rows.forEach(function (g) {
+      var tr = el("tr", g.group === "NORMAL" ? "control" : null);
+      function cell(text, tone) { tr.appendChild(el("td", tone, text)); }
+      cell(g.group === "NORMAL" ? "Ordinary days" : (LABELS[g.group] || g.group));
+      cell(String(g.n), "d");
+      cell(num(g.avg_net, 1), "d " + (g.avg_net > 0 ? "pos" : "neg"));
+      cell(num(g.median_net, 1), "d");
+      cell(num(g.win_rate, 1) + "%", "d");
+      cell(num(g.worst, 1), "d neg");
+      cell(g.worst_day || "—", "d");
+      cell(num(g.avg_gross, 2), "d " + (g.avg_gross > 0 ? "pos" : "neg"));
+      body.appendChild(tr);
+    });
+
+    var note = "Costs assumed: " + data.cost_points + " index points plus " +
+      (data.cost_pct * 100).toFixed(3) + "% of premium traded. " +
+      "“Break-even cost” is profit before any costs, which is also the " +
+      "round-trip cost at which the rule stops paying — so it says how wrong " +
+      "the cost assumption would have to be to erase the result.";
+    if (data.control) {
+      note += " Selling on an ordinary day made " + num(data.control.avg_gross, 2) +
+        " points before costs; any event group below that figure did worse " +
+        "than trading at random.";
+    }
+    document.getElementById("btNote").textContent = note;
+    document.getElementById("btSection").hidden = false;
+  }
+
+  function loadBacktest() {
+    var section = document.getElementById("btSection");
+    if (indexMeta && indexMeta.has_backtest &&
+        indexMeta.has_backtest.indexOf(currentIndex) < 0) {
+      section.hidden = true;
+      return;
+    }
+    get(q("/api/backtest?")).then(renderBacktest).catch(function () {
+      section.hidden = true;
+    });
+  }
+
+  // ---- wiring ----
+
+  function selectType(type) {
+    current = type;
+    // Scoped to #tabs on purpose. The index buttons are a different control;
+    // an unscoped ".tab" once reached them too and cleared the selected index
+    // every time an event tab was clicked.
+    Array.prototype.forEach.call(document.querySelectorAll("#tabs .tab"), function (t) {
+      t.setAttribute("aria-selected", String(t.dataset.type === type));
+    });
+    var panel = document.getElementById("panel");
+    panel.className = "status";
+    panel.textContent = "Loading " + (LABELS[type] || type) + "…";
+    get(q("/api/results?type=" + encodeURIComponent(type) + "&"))
+      .then(renderPanel)
+      .catch(function (err) {
+        panel.className = "status";
+        panel.textContent = "Could not load the results: " + err.message;
+      });
+  }
+
+  function selectIndex(key) {
+    currentIndex = key;
+    Array.prototype.forEach.call(document.querySelectorAll("#indexbar button"), function (t) {
+      t.setAttribute("aria-selected", String(t.dataset.index === key));
+    });
+    document.getElementById("subline").textContent =
+      "How " + idxName(key) + " implied volatility behaves around the Union " +
+      "Budget, RBI policy meetings and the 2024 election result.";
+
+    // Everything on the page belongs to one index, so a switch reloads all
+    // of it rather than leaving a stale chart beside fresh numbers.
+    selectType(current || "RBI");
+    get(q("/api/daily?")).then(drawVix).catch(function () {
+      document.getElementById("vixNote").textContent = "Could not load the daily series.";
+    });
+    loadBacktest();
+    loadDirection();
+  }
+
+  function start() {
+    initTheme();
+
+    get("/api/meta").then(function (m) {
+      indexMeta = m;
+      var meta = document.getElementById("meta");
+      meta.textContent = "";
+      [["Data", m.first_date + " → " + m.latest_date],
+       ["Trading days", String(m.trading_days)],
+       ["Events", String(m.events)],
+       ["Indices", String((m.indexes || []).length)]].forEach(function (pair) {
+        var span = el("span");
+        span.appendChild(el("b", null, pair[0]));
+        span.appendChild(document.createTextNode(" " + pair[1]));
+        meta.appendChild(span);
+      });
+      document.getElementById("footer").textContent =
+        "Nifty IV Event Study · " + m.trading_days + " trading days · " +
+        m.events + " events · " + (m.indexes || []).join(" and ") +
+        " · latest data " + m.latest_date +
+        // "Offline" was the wrong word here: it read as "out of date" when the
+        // point is where the arithmetic happens. Every figure comes out of
+        // Python that has tests and is written to a CSV; the browser downloads
+        // finished numbers and draws them, and never calculates one. A page
+        // that computes its own figures has a second place for a number to be
+        // wrong, and no test covering it.
+        " · figures computed in Python by tested code, then written to CSV — " +
+        "the browser only draws them";
+
+      // Most-evidenced first, rather than alphabetical: 23 RBI meetings carry
+      // the finding, the single election is a footnote.
+      var order = ["RBI", "BUDGET", "ELECTION"];
+      var tabs = document.getElementById("tabs");
+      tabs.textContent = "";
+      m.event_types.slice().sort(function (a, b) {
+        var ia = order.indexOf(a), ib = order.indexOf(b);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+      }).forEach(function (type) {
+        var b = el("button", "tab", LABELS[type] || type);
+        b.type = "button";
+        b.dataset.type = type;
+        b.setAttribute("role", "tab");
+        b.setAttribute("aria-selected", "false");
+        b.addEventListener("click", function () { selectType(type); });
+        tabs.appendChild(b);
+      });
+      current = m.event_types.indexOf("RBI") >= 0 ? "RBI" : m.event_types[0];
+
+      // Built from what the server actually has, so an index that was never
+      // built does not appear, and a third one would show up without a page
+      // change.
+      var bar = document.getElementById("indexbar");
+      bar.textContent = "";
+      (m.indexes || ["NIFTY"]).forEach(function (key) {
+        var b = el("button", null, idxName(key));
+        b.type = "button";
+        b.dataset.index = key;
+        b.setAttribute("role", "tab");
+        b.setAttribute("aria-selected", "false");
+        b.addEventListener("click", function () { selectIndex(key); });
+        bar.appendChild(b);
+      });
+      selectIndex(m.default_index || "NIFTY");
+    }).catch(function (err) {
+      document.getElementById("panel").textContent =
+        "Could not reach the server: " + err.message;
+    });
+
+    var btn = document.getElementById("askBtn");
+    var input = document.getElementById("q");
+    var out = document.getElementById("answer");
+    function ask() {
+      var text = input.value.trim();
+      if (!text) return;
+      btn.disabled = true;
+      out.textContent = "Thinking…";
+      fetch("/api/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        // Send the panel in view, so "IV before the Budget" means the
+        // index on screen rather than both of them.
+        body: JSON.stringify({ question: text, index: currentIndex })
+      }).then(function (r) { return r.json(); })
+        .then(function (d) { out.textContent = d.answer; })
+        .catch(function (e) { out.textContent = "Could not ask: " + e.message; })
+        .finally(function () { btn.disabled = false; });
+    }
+    btn.addEventListener("click", ask);
+    input.addEventListener("keydown", function (e) { if (e.key === "Enter") ask(); });
+  }
+
+  start();
+})();
+</script>
+</body>
+</html>
