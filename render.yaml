@@ -1,0 +1,41 @@
+# Render blueprint. In the dashboard: New -> Blueprint -> pick this repo, and
+# Render reads this file instead of you filling in a form.
+#
+# Everything here is also settable by hand in the web UI. Keeping it in the
+# repo means the deployment is described in one place, reviewable in a diff,
+# and reproducible if the service is ever recreated.
+
+services:
+  - type: web
+    name: nifty-iv-event-study
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: singapore          # nearest to the data and to most readers
+    branch: main
+
+    # Every push to main redeploys. That is also how the site refreshes its
+    # numbers: data/*.csv are committed, so new data arrives the same way new
+    # code does. There is no second update path to go stale.
+    autoDeploy: true
+
+    # Cheap, needs no key, and returns real data -- so a container that
+    # started but failed to load its CSVs is reported unhealthy rather than
+    # serving a broken page.
+    healthCheckPath: /api/meta
+
+    envVars:
+      # sync: false means "ask me, and keep it out of the repo". Render
+      # prompts once and stores it encrypted; it never appears in this file
+      # or in git. A key committed to a repository is a key published.
+      - key: LLM_API_KEY
+        sync: false
+
+      - key: LLM_BASE_URL
+        value: https://api.groq.com/openai/v1
+
+      - key: LLM_MODEL
+        value: openai/gpt-oss-120b
+
+      - key: PYTHONUNBUFFERED
+        value: "1"

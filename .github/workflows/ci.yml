@@ -1,0 +1,136 @@
+# Runs on every push. Three jobs, each proving something different.
+#
+#   tests   the maths and the statistics still hold
+#   docker  the image builds from scratch and actually serves real data
+#   cpp     the C++ solver still agrees with the Python one
+#
+# The docker job is the one that matters most. A build that succeeds only
+# proves the dependencies resolve; starting the container and asking it for
+# 23 RBI events proves the data got in and the app works inside it.
+#
+# None of this needs an API key. The question box is excluded on purpose --
+# it costs money per call and has a daily free-tier cap, so it is measured
+# deliberately with run_evals.py rather than on every push.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: tests and retrieval
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install -r requirements.txt
+
+      - name: Unit tests
+        run: pytest -q
+
+      # Needs no LLM key: it only checks that the search finds the right
+      # document. Currently near-trivial with one PDF indexed, and it starts
+      # meaning something as documents are added.
+      - name: Retrieval evals
+        run: python run_evals.py --retrieval-only
+
+      # A smoke test on the real app, without Docker in the way. If this
+      # fails but the container passes, the problem is the image; if both
+      # fail, it is the code.
+      - name: Import and serve
+        run: |
+          python -c "import main; print('routes:', len(main.app.routes))"
+          python -m uvicorn main:app --port 8000 &
+          for i in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8000/api/meta >/dev/null && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:8000/api/meta | python -c "
+          import json,sys
+          d = json.load(sys.stdin)
+          assert d['events'] == 29, d
+          assert 'NIFTY' in d['indexes'], d
+          print('meta ok:', d['trading_days'], 'days,', d['events'], 'events')
+          "
+
+  docker:
+    name: image builds and serves
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # No cache, deliberately. A clean machine every time is a stricter
+      # reproducibility test than building on a developer's laptop, where a
+      # missing dependency can be satisfied by something already installed.
+      - name: Build
+        run: docker build --no-cache -t nifty-iv .
+
+      - name: Run it
+        run: |
+          docker run -d --name app -p 8000:8000 -e PORT=8000 nifty-iv
+          for i in $(seq 1 45); do
+            curl -sf http://127.0.0.1:8000/api/meta >/dev/null && break
+            sleep 2
+          done
+
+      # Not "did it start" but "does it serve the study". Each of these would
+      # have caught a real failure during development: missing CSVs, the
+      # Bank Nifty wiring, NaN reaching the JSON.
+      - name: Check it serves real data
+        run: |
+          curl -sf http://127.0.0.1:8000/api/results?type=RBI | python -c "
+          import json,sys
+          d = json.load(sys.stdin)
+          assert len(d['events']) == 23, len(d['events'])
+          assert d['summary']['overpriced'] == 19, d['summary']
+          print('RBI ok:', d['summary']['avg_change_pct'], '% average change')
+          "
+          curl -sf 'http://127.0.0.1:8000/api/results?type=RBI&index=BANKNIFTY' >/dev/null
+          curl -sf http://127.0.0.1:8000/api/backtest >/dev/null
+          curl -sf http://127.0.0.1:8000/api/direction >/dev/null
+          curl -sf http://127.0.0.1:8000/ | grep -q "Nifty IV" && echo "page ok"
+
+      # NaN is not valid JSON. One unsolvable option reaching the response
+      # would stop the page parsing it at all -- a blank site, not a gap.
+      - name: No NaN in any response
+        run: |
+          for path in "api/meta" "api/results?type=RBI" "api/daily" "api/backtest" "api/direction"; do
+            if curl -sf "http://127.0.0.1:8000/$path" | grep -q NaN; then
+              echo "NaN found in /$path"; exit 1
+            fi
+          done
+          echo "all responses are valid JSON"
+
+      - name: Logs if anything failed
+        if: failure()
+        run: docker logs app
+
+  cpp:
+    name: c++ agrees with python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: pip install numpy pandas scipy
+
+      # Two independent implementations agreeing to twelve decimal places is
+      # a far stronger statement about the maths than one implementation
+      # passing its own tests. bench.py exits non-zero if they disagree.
+      - name: Build and compare
+        run: python bench.py --build --no-percall

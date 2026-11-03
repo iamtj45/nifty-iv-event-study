@@ -1,0 +1,44 @@
+# Everything here is copied into the build context before Docker starts, so
+# leaving large or irrelevant files out makes every build faster -- and keeps
+# them out of the published image.
+#
+# What must NOT be excluded: data/*.csv (the server reads them at startup),
+# data/chunks.json (the question box searches it), and static/ (the page).
+
+.git
+.gitignore
+.github
+.dockerignore
+
+# Secrets never enter an image. On Render the key comes from the dashboard;
+# locally it comes from .env on the host. Baking one into a layer would ship
+# it to anyone who pulls the image.
+.env
+.env.*
+
+# 86 MB of NSE files. build.py needs them; the server never opens one.
+data/raw/
+
+# The source PDFs. rag.py already turned them into data/chunks.json, which is
+# all the running site needs.
+docs/
+
+# Verification tooling, not runtime. The C++ solver exists to check the
+# Python one, and that check happens in CI.
+cpp/
+bench.py
+tests/
+
+# Write-ups and their sources.
+*.pdf
+*.md
+code-guide.html
+explainer.html
+summary.html
+
+# Local Python clutter.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
