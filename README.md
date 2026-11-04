@@ -1,6 +1,6 @@
 
 # Nifty IV Event Study
-**Live link: https://nifty-iv-event-study.onrender.com/
+Live link: https://nifty-iv-event-study.onrender.com/
 
 
 **What the Indian options market expects before major events, against what actually happens.**
@@ -17,9 +17,6 @@ direction, and could you have traded it.
 2 indices          Nifty 50 and Bank Nifty
 ```
 
-*Figures throughout are as of 4 Nov 2026, the last trading day in the data.
-They are regenerated from the result files by `update_readme.py`, and CI fails
-if they drift — so this page and the live site cannot disagree.*
 <!-- /AUTO:COVERAGE -->
 
 ---
