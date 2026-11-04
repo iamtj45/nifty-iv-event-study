@@ -277,11 +277,10 @@ libel a model silently:
 | `backtest.py` | 538 | The straddle rule, events against ordinary days |
 | `direction.py` | 363 | Sign tests, and volatility against direction |
 | `update.py` | 291 | Brings everything up to the last trading day |
-| `update_readme.py` | 468 | Regenerates this file's figures, and checks them in CI |
+| `update_readme.py` | 467 | Regenerates this file's figures, and checks them in CI |
 | `main.py` | 738 | FastAPI: the API and the question box |
 | `rag.py` | 296 | PDF passages and BM25 retrieval |
 | `run_evals.py` | 471 | The four eval checks |
-| `mcp_server.py` | 319 | MCP tools so an assistant can query the study |
 | `cpp/iv.cpp` | 224 | The solver again, in C++, for verification |
 | `bench.py` | 348 | Accuracy and speed, Python against C++ |
 | `tests/` | 442 | 80 tests on the maths and the statistics |

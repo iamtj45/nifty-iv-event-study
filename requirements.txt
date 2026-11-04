@@ -16,9 +16,6 @@ pypdf>=4.0
 rank_bm25>=0.2.2
 openai>=1.30
 
-# MCP server
-mcp>=1.0
-
 # Tests. Installed in CI, not needed to serve the site -- kept here rather
 # than in a second file because one list that is always right beats two that
 # drift apart.

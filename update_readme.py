@@ -93,7 +93,7 @@ def wrap(text):
 # Files listed in the "What is here" table, in the order they should appear.
 FILES = ["download.py", "iv.py", "build.py", "analysis.py", "backtest.py",
          "direction.py", "update.py", "update_readme.py", "main.py", "rag.py",
-         "run_evals.py", "mcp_server.py", "cpp/iv.cpp", "bench.py"]
+         "run_evals.py", "cpp/iv.cpp", "bench.py"]
 
 BLURB = {
     "download.py": "Fetches NSE bhavcopies and index closes",
@@ -107,7 +107,6 @@ BLURB = {
     "main.py": "FastAPI: the API and the question box",
     "rag.py": "PDF passages and BM25 retrieval",
     "run_evals.py": "The four eval checks",
-    "mcp_server.py": "MCP tools so an assistant can query the study",
     "cpp/iv.cpp": "The solver again, in C++, for verification",
     "bench.py": "Accuracy and speed, Python against C++",
 }
