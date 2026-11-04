@@ -1,0 +1,194 @@
+===========================================================================
+  NIFTY IV EVENT STUDY  --  the whole thing, in simple words
+===========================================================================
+
+
+THE UMBRELLA SHOP
+-----------------
+
+Tomorrow the weather office is announcing something big. Everyone's
+nervous. They rush out and buy umbrellas.
+
+Umbrella prices shoot up.
+
+Next day comes. It drizzles a bit. Nothing dramatic.
+
+Everyone who panic-bought an umbrella overpaid.
+
+
+THAT'S YOUR PROJECT
+-------------------
+
+  umbrella          an option (insurance against the market moving)
+  umbrella price    implied volatility -- how scared people are
+  the rain          how much the Nifty actually moved
+
+You measured 29 of those announcement days -- RBI interest-rate
+decisions, Union Budgets, and the 2024 election result.
+
+Each time you checked two things:
+
+  1. How much were umbrellas going for the day before?
+  2. How much did it actually rain?
+
+RESULT:  19 times out of 23, people had overpaid.
+
+  Before RBI meetings the market priced in 13.35% of movement.
+  What actually arrived was 9.87%.
+
+
+THEN YOU ASKED THREE MORE THINGS
+--------------------------------
+
+  "Was that just luck?"
+
+    You took 448 ordinary days with no announcement anywhere near.
+    Picked 23 at random. Averaged them. Did that 10,000 times.
+
+    None of the 10,000 looked like this.
+
+    Not luck.
+
+
+  "So could I run the umbrella shop and get rich?"
+
+    You tested it: sell umbrellas before every announcement, buy them
+    back the next day.
+
+    It made almost nothing -- 0.12 points before any fees. Less than
+    doing the same thing on a random Tuesday (5.58 points).
+
+    Why? Because on announcement days it DOES rain a bit more than
+    usual. Not as much as people feared -- but enough that paying out
+    eats what you collected.
+
+
+  "Does the umbrella price tell me if it'll rain or shine?"
+
+    No. 11 times the market went up, 12 times down. A coin toss.
+
+    The price only ever says "something might happen".
+    It never says which way.
+
+
+THE WHOLE THING IN ONE LINE
+---------------------------
+
+  People overpay for protection before big news -- provably, not by
+  luck -- but you still can't make money selling it to them.
+
+
+WHY THAT'S A GOOD RESULT
+------------------------
+
+If it had said "yes, easy money", the first question anyone asks is:
+
+  "Thousands of professionals watch this market every day.
+   Why hasn't one of them noticed?"
+
+You'd have no answer.
+
+Instead you can say:
+
+  "They have noticed. That's exactly why the price of the rain eats
+   the profit."
+
+
+===========================================================================
+  TWO THINGS PEOPLE GET CONFUSED ABOUT
+===========================================================================
+
+
+1. "The answer box said the market rose 0.59% -- I thought we couldn't
+    predict direction?"
+
+   Two different things.
+
+     "Which way did it go on 5 Dec 2025?"   +0.59%   -- we measured it
+     "Which way will it go next meeting?"    no idea -- coin flip
+
+   Looking back, we know every single day exactly.
+   Looking forward, nothing.
+
+   And note the useful asymmetry for a FUTURE event:
+
+     which way will it move?   unknown. 11 up, 12 down.
+     how far will it move?     less than the market expects,
+                               19 times out of 23.
+
+   Direction is unpredictable. Size is predictable -- not the exact
+   number, but the reliable fact that it'll be smaller than people
+   are paying for.
+
+
+2. "Does volatility tell us the direction or not?"
+
+   It tells you TODAY'S direction, strongly. It tells you nothing
+   about tomorrow.
+
+     fear went up today   -> market fell today, 62% of the time
+     fear went down today -> market rose today, 66% of the time
+     biggest fear spikes  -> next day was 54.6% up,
+                             against 52.8% on any ordinary day
+                             (basically the same)
+
+   Fear rising and prices falling are the same event seen two ways.
+   People aren't predicting a drop -- they're reacting to the one on
+   their screen.
+
+   A thermometer tells you it's hot right now, very accurately.
+   It tells you nothing about tomorrow's weather.
+
+
+===========================================================================
+  THE NUMBERS, IF SOMEONE ASKS
+===========================================================================
+
+  Coverage        969 trading days, Dec 2022 - Nov 2026
+                  29 events, 2 indices (Nifty 50 and Bank Nifty)
+
+  The finding     RBI:    13.35% priced in, 9.87% delivered,
+                          overpriced 19 of 23, IV fell 5.62% on the day
+                  Budget: 17.99% priced in, 13.34% delivered
+
+  Not luck        placebo test: 0.04 percentile
+                  (of 10,000 random groups, none as extreme)
+                  95% range on the RBI fall: -8.88% to -2.70%
+                  -- entirely below zero
+
+  Not tradeable   selling the straddle before RBI meetings:
+                  0.12 points before costs
+                  selling on an ordinary day: 5.58 points
+                  worst single loss: -722 points, election day 2024
+
+  No direction    RBI days rose 47.8% of the time
+                  ordinary days rose 54.7% of the time
+                  so an RBI day tells you LESS than a random Tuesday
+
+  Is it right?    our volatility series correlates 0.9157 with India
+                  VIX, which NSE publishes independently using a
+                  completely different method
+
+  Second index    Bank Nifty, run through the same pipeline, reaches
+                  the same conclusions -- overpriced 21 of 23, and a
+                  straddle trade that loses money before costs
+
+
+===========================================================================
+  WHAT THE PROJECT HONESTLY CANNOT DO
+===========================================================================
+
+  - See inside a day. It uses end-of-day prices only, so "what
+    happened at 2pm" is invisible.
+
+  - Say anything reliable about Budgets. There are only five. With
+    five events a statistical test cannot reach significance however
+    the data falls.
+
+  - Predict any single future event. The averages hold across 23
+    meetings; both indices fell together on only 12 of them.
+
+  - Claim the effect is new. Volatility falling after scheduled
+    events is well documented. What's new here is the measurement on
+    Indian data -- validated against an outside source, and shown to
+    be untradeable.

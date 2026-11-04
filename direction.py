@@ -93,10 +93,18 @@ def moves(daily):
 
 
 def forward_move(daily, index, days=WINDOW):
-    """Percentage change over the `days` trading days after `index`."""
+    """Percentage change over the `days` trading days after `index`.
+
+    Returns NaN rather than a shorter window when the series runs out. An
+    event in the last fortnight of the data has no ten-day future yet, and
+    clamping to the final row would report its three-day move in a column
+    labelled ten-day -- two different measurements in one column, with
+    nothing on the page to say which rows are which. No event is affected
+    today; the next few added to events.csv would have been.
+    """
     spot = daily["spot"].to_numpy(dtype=float)
-    end = min(index + days, len(spot) - 1)
-    if end <= index or spot[index] <= 0:
+    end = index + days
+    if end >= len(spot) or spot[index] <= 0:
         return np.nan
     return (spot[end] / spot[index] - 1.0) * 100.0
 

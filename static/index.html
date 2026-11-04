@@ -455,6 +455,11 @@
   var INDEX_LABELS = { NIFTY: "Nifty", BANKNIFTY: "Bank Nifty" };
   var current = null, currentIndex = "NIFTY", indexMeta = null;
   var ivChart = null, skewChart = null, vixChart = null;
+  // The last payload each panel drew. A theme change has to rebuild the
+  // charts, because Chart.js bakes colours in at construction -- but it does
+  // not need the data again, and re-fetching four endpoints to recolour two
+  // canvases made a toggle feel like a page load.
+  var lastResults = null, lastVix = null;
 
   function css(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -506,10 +511,13 @@
   }
 
   // Chart.js bakes colours in at construction, so a theme change has to
-  // rebuild them rather than just restyle the page.
+  // rebuild the charts rather than just restyle the page. It redraws from the
+  // payloads already in hand: the backtest and direction tables are plain
+  // HTML coloured by CSS classes, so they restyle themselves and are left
+  // alone entirely.
   function redrawAll() {
-    if (!indexMeta) return;
-    selectIndex(currentIndex);
+    if (lastResults) renderPanel(lastResults);
+    if (lastVix) drawVix(lastVix);
   }
 
   // ---- chart plumbing ----
@@ -627,6 +635,7 @@
   // ---- the panel for one event type ----
 
   function renderPanel(data) {
+    lastResults = data;
     var s = data.summary, p = data.placebo;
     var panel = document.getElementById("panel");
     panel.className = "";
@@ -822,6 +831,7 @@
   // ---- the India VIX check ----
 
   function drawVix(data) {
+    lastVix = data;
     var native = data.vix_is_native;
 
     document.getElementById("vixHead").textContent =
@@ -891,9 +901,11 @@
       cell(String(g.down), "d");
       cell(g.pct_up === null ? "—" : num(g.pct_up, 1) + "%", "d");
       // Direction is polarity, not good or bad, so the two palette poles
-      // mark it rather than green and red.
+      // mark it rather than green and red. The mapping must match the events
+      // table above: .fell is teal, .rose is amber, and having the two
+      // tables disagree painted election day's -5.93% in the up colour.
       cell(num(g.mean_move, 3) + "%",
-           "d " + (g.mean_move < 0 ? "rose" : "fell"));
+           "d " + (g.mean_move < 0 ? "fell" : "rose"));
       cell(g.ci_low === null ? "—"
              : num(g.ci_low, 2) + " to " + num(g.ci_high, 2), "d");
       cell(g.sign_test_p === null ? "—" : num(g.sign_test_p, 3), "d");
@@ -1013,7 +1025,42 @@
       });
   }
 
-  function selectIndex(key) {
+  // The coverage line under the title, and the footer. Both are per index, so
+  // this lives apart from start()'s one-time tab building and an index switch
+  // can call it on its own. It used to run once at startup from Nifty's
+  // figures and then never again, so Bank Nifty borrowed Nifty's day count
+  // and date range -- invisible only while the two series happen to match.
+  function applyMeta(m) {
+    indexMeta = m;
+
+    var meta = document.getElementById("meta");
+    meta.textContent = "";
+    [["Data", m.first_date + " → " + m.latest_date],
+     ["Trading days", String(m.trading_days)],
+     ["Events", String(m.events)],
+     ["Indices", String((m.indexes || []).length)]].forEach(function (pair) {
+      var span = el("span");
+      span.appendChild(el("b", null, pair[0]));
+      span.appendChild(document.createTextNode(" " + pair[1]));
+      meta.appendChild(span);
+    });
+
+    document.getElementById("footer").textContent =
+      idxName(m.index || currentIndex) + " IV Event Study · " +
+      m.trading_days + " trading days · " + m.events + " events · " +
+      (m.indexes || []).map(idxName).join(" and ") +
+      " · latest data " + m.latest_date +
+      // "Offline" was the wrong word here: it read as "out of date" when the
+      // point is where the arithmetic happens. Every figure comes out of
+      // Python that has tests and is written to a CSV; the browser downloads
+      // finished numbers and draws them, and never calculates one. A page
+      // that computes its own figures has a second place for a number to be
+      // wrong, and no test covering it.
+      " · figures computed in Python by tested code, then written to CSV — " +
+      "the browser only draws them";
+  }
+
+  function selectIndex(key, prefetched) {
     currentIndex = key;
     Array.prototype.forEach.call(document.querySelectorAll("#indexbar button"), function (t) {
       t.setAttribute("aria-selected", String(t.dataset.index === key));
@@ -1021,6 +1068,11 @@
     document.getElementById("subline").textContent =
       "How " + idxName(key) + " implied volatility behaves around the Union " +
       "Budget, RBI policy meetings and the 2024 election result.";
+
+    // Startup already has this index's meta in hand, so it is passed in
+    // rather than fetched a second time.
+    if (prefetched) applyMeta(prefetched);
+    else get(q("/api/meta?")).then(applyMeta).catch(function () {});
 
     // Everything on the page belongs to one index, so a switch reloads all
     // of it rather than leaving a stale chart beside fresh numbers.
@@ -1036,30 +1088,7 @@
     initTheme();
 
     get("/api/meta").then(function (m) {
-      indexMeta = m;
-      var meta = document.getElementById("meta");
-      meta.textContent = "";
-      [["Data", m.first_date + " → " + m.latest_date],
-       ["Trading days", String(m.trading_days)],
-       ["Events", String(m.events)],
-       ["Indices", String((m.indexes || []).length)]].forEach(function (pair) {
-        var span = el("span");
-        span.appendChild(el("b", null, pair[0]));
-        span.appendChild(document.createTextNode(" " + pair[1]));
-        meta.appendChild(span);
-      });
-      document.getElementById("footer").textContent =
-        "Nifty IV Event Study · " + m.trading_days + " trading days · " +
-        m.events + " events · " + (m.indexes || []).join(" and ") +
-        " · latest data " + m.latest_date +
-        // "Offline" was the wrong word here: it read as "out of date" when the
-        // point is where the arithmetic happens. Every figure comes out of
-        // Python that has tests and is written to a CSV; the browser downloads
-        // finished numbers and draws them, and never calculates one. A page
-        // that computes its own figures has a second place for a number to be
-        // wrong, and no test covering it.
-        " · figures computed in Python by tested code, then written to CSV — " +
-        "the browser only draws them";
+      applyMeta(m);
 
       // Most-evidenced first, rather than alphabetical: 23 RBI meetings carry
       // the finding, the single election is a footnote.
@@ -1094,7 +1123,10 @@
         b.addEventListener("click", function () { selectIndex(key); });
         bar.appendChild(b);
       });
-      selectIndex(m.default_index || "NIFTY");
+      // The bare /api/meta above answers for the default index, so its
+      // payload is handed straight on rather than fetched again.
+      var first = m.default_index || "NIFTY";
+      selectIndex(first, first === m.index ? m : null);
     }).catch(function (err) {
       document.getElementById("panel").textContent =
         "Could not reach the server: " + err.message;

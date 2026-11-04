@@ -104,8 +104,21 @@ def fetch(url, attempts=3):
         if r.status_code == 404:
             return None                    # NSE answered: no such file
         if r.status_code == 200:
+            if r.content[:2] == b"PK":
+                return r.content
+            # An empty body is not an answer either way. A holiday replies 200
+            # with an HTML notice -- which has content in it -- so nothing at
+            # all means a truncated or dropped reply. Returning None here
+            # would record a day that may well have traded as a holiday,
+            # which is exactly what FETCH_FAILED exists to prevent.
+            if not r.content:
+                if attempt == attempts - 1:
+                    print(f"    empty 200 for {url}", file=sys.stderr)
+                    return FETCH_FAILED
+                time.sleep(2 * (attempt + 1))
+                continue
             # A holiday can answer 200 with an HTML notice instead of a zip.
-            return r.content if r.content[:2] == b"PK" else None
+            return None
         if attempt == attempts - 1:
             print(f"    HTTP {r.status_code} for {url}", file=sys.stderr)
             return FETCH_FAILED            # 5xx, throttling, anything unclear

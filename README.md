@@ -7,11 +7,17 @@ up around 29 scheduled events — RBI policy meetings, Union Budgets and the 202
 election result — and tested three ways: is the effect real, does it predict
 direction, and could you have traded it.
 
+<!-- AUTO:COVERAGE -->
 ```
-968 trading days   1 Dec 2022 – 2 Nov 2026
+969 trading days   1 Dec 2022 – 3 Nov 2026
 29 events          23 RBI · 5 Budget · 1 election
 2 indices          Nifty 50 and Bank Nifty
 ```
+
+*Figures throughout are as of 3 Nov 2026, the last trading day in the data.
+They are regenerated from the result files by `update_readme.py`, and CI fails
+if they drift — so this page and the live site cannot disagree.*
+<!-- /AUTO:COVERAGE -->
 
 ---
 
@@ -19,78 +25,89 @@ direction, and could you have traded it.
 
 ### 1. Options are systematically overpriced before events
 
+<!-- AUTO:FINDINGS -->
 | Event | n | IV charged before | Volatility delivered | Overpriced in |
 |---|---:|---:|---:|---:|
 | RBI policy | 23 | 13.35% | 9.87% | **19 of 23** |
-| Union Budget | 5 | 17.99% | 13.34% | 3 of 5 |
+| Union Budget | 5 | 17.98% | 13.34% | 3 of 5 |
 | Election result | 1 | 26.92% | 17.66% | 1 of 1 |
 
 Before RBI meetings the market priced in 13.35% of volatility and got 9.87%.
 On the day itself implied volatility fell **5.62%** on average.
+<!-- /AUTO:FINDINGS -->
 
 ### 2. It is not chance
 
-A placebo test takes 448 ordinary trading days — at least ten days from any
+<!-- AUTO:PLACEBO -->
+A placebo test takes 450 ordinary trading days — at least ten days from any
 event — draws 23 of them at random, averages, and repeats 10,000 times.
 
 ```
-RBI       0.04 percentile      none of 10,000 random groups were as extreme
-Budget    0.02 percentile
-Election 98.88 percentile      went the other way, as expected
+RBI        0.02 percentile      none of 10,000 random groups were as extreme
+Budget     0.00 percentile
+Election  99.04 percentile      went the other way, as expected
 ```
 
 The 95% confidence range on the RBI crush is **−8.88% to −2.70%** — entirely
 below zero.
+<!-- /AUTO:PLACEBO -->
 
 ### 3. Direction is not predictable
 
+<!-- AUTO:DIRECTION -->
 | | up | down | % up | coin-flip p |
 |---|---:|---:|---:|---:|
 | RBI days | 11 | 12 | 47.8% | 1.000 |
-| ordinary days | 245 | 203 | 54.7% | 0.053 |
+| ordinary days | 246 | 203 | 54.8% | 0.047 |
 
-Ordinary days rise 54.7% of the time — the slow upward drift of equities. RBI
+Ordinary days rise 54.8% of the time — the slow upward drift of equities. RBI
 days rise 47.8%. **Knowing a meeting is tomorrow leaves you with less
 directional information than an ordinary Tuesday.** The decision is in the
 price before it is announced.
+<!-- /AUTO:DIRECTION -->
 
 ### 4. And you could not have traded it
 
 One rule, fixed in advance: sell the at-the-money straddle at the close the day
 before, buy it back at the close on the event day. Profit in index points.
 
+<!-- AUTO:BACKTEST -->
 | Group | Trades | Avg net | Won | Worst loss | Break-even cost |
 |---|---:|---:|---:|---:|---:|
 | RBI | 23 | −3.02 | 56.5% | −181.93 | **0.12** |
 | Budget | 5 | +85.63 | 80.0% | −114.50 | 89.10 |
-| Election | 1 | −722.36 | 0% | −722.36 | −716.80 |
-| **ordinary days** | 449 | +2.52 | 62.4% | −429.00 | **5.58** |
+| Election | 1 | −722.36 | 0.0% | −722.36 | −716.80 |
+| **ordinary days** | 450 | +2.33 | 62.2% | −429.00 | **5.39** |
 
 "Break-even cost" is profit before any fees — which is also exactly the
 round-trip cost at which the rule stops paying.
 
 **Selling before RBI meetings earned 0.12 points before costs. Selling on a
-random Tuesday earned 5.58.** The event trade is worse than trading at random,
-because event days also *move* more (0.675% against 0.547%), and the extra
-movement costs the seller more than the collapsing volatility pays.
+random Tuesday earned 5.39.** The event trade is worse than trading at random,
+because event days also *move* more, and the extra movement costs the seller
+more than the collapsing volatility pays.
 
-The single worst trade in all 477 was not an event at all: an ordinary Monday,
-12 May 2025, −429 points.
+The worst single trade of all 479 was the election result: 4 Jun 2024, −722
+points. The worst ordinary day lost −429 — a deeper hole than any RBI meeting
+produced, on a day when nothing was scheduled at all.
+<!-- /AUTO:BACKTEST -->
 
 ### 5. What volatility *does* tell you
 
+<!-- AUTO:VOLDIR -->
 | | correlation | days |
 |---|---:|---:|
-| IV change vs **same-day** return | **−0.5125** | 967 |
-| IV change vs **next-day** return | +0.0328 | 966 |
+| IV change vs **same-day** return | **−0.5122** | 968 |
+| IV change vs **next-day** return | +0.0334 | 967 |
 
 On days volatility rose, the market fell **62%** of the time. On days it fell,
 the market rose **66%** of the time.
 
-But after the largest 10% of volatility spikes, the next day rose 54.6% — against
-a 52.8% baseline. **Volatility measures today's direction accurately and
-forecasts tomorrow's not at all.** Fear rising and prices falling are the same
-event seen two ways, not a cause and its effect.
+But after the largest 10% of volatility spikes, the next day rose 54.6% —
+against a 52.8% baseline. **Volatility measures today's direction accurately
+and forecasts tomorrow's not at all.** Fear rising and prices falling are the
+same event seen two ways, not a cause and its effect.
+<!-- /AUTO:VOLDIR -->
 
 ---
 
@@ -100,10 +117,11 @@ The strongest evidence is external. **India VIX** is published by NSE using a
 different method — many strikes over a fixed 30 days, where this uses one
 near-dated strike.
 
+<!-- AUTO:VIX -->
 ```
 our ATM IV       12.74
-India VIX        13.81
-correlation      0.9157   over 960 overlapping days
+India VIX        13.82
+correlation      0.9157   over 962 overlapping days
 ```
 
 The ~1 point gap is expected and, importantly, **steady**. A broken solver
@@ -114,12 +132,13 @@ looks like.
 **Bank Nifty corroborates independently.** Run through the same pipeline it
 gives 15.03% mean IV against Nifty's 12.74% — higher, as a single-sector index
 should be — and reaches the same conclusions: overpriced 21 of 23, placebo
-0.05, and a straddle trade that *loses* 19.1 points before costs.
+0.04, and a straddle trade that *loses* 19.1 points before costs.
 
 The crush is also the same size in **absolute** volatility points in both
-indices (−0.87 vs −0.81), not proportionally larger in the rate-sensitive
-banking index. The event premium is a roughly fixed quantity of volatility,
-not a percentage markup.
+indices (Nifty −0.87 against Bank Nifty −0.81), not proportionally larger in
+the rate-sensitive banking index. The event premium is a roughly fixed
+quantity of volatility, not a percentage markup.
+<!-- /AUTO:VIX -->
 
 **A C++ port of the solver** agrees with the Python to 3.3e-08, and rejects
 exactly the same 164 unsolvable contracts out of 1,026 in a real session.
@@ -201,44 +220,72 @@ quote from them, refuse anything absent, and never give advice. Every figure
 on the page was computed offline by code with tests.
 
 ```bash
-python run_evals.py --index NIFTY --limit 35 --refusals 15
+python run_evals.py --index NIFTY     --limit 9 --refusals 6
+python run_evals.py --index BANKNIFTY --limit 9 --refusals 6
 ```
 
 Four checks: **numbers** (is the exact figure quoted?), **citations** (was every
-document named actually retrieved?), **refusals** (40 unanswerable questions,
-including dates where no event happened), and **retrieval**.
+document named actually retrieved?), **refusals** (unanswerable questions,
+including real dates on which no event happened), and **retrieval**.
 
-> **Eval status:** numbers 10/10 and citations 10/10 on a partial run with
-> `gpt-oss-120b`; refusals 4/4 of those reached before the free-tier daily
-> token limit stopped the run. The full suite has not yet been run end to end.
-> Eval results belong to the model that produced them — `gpt-oss-20b` failed
-> deterministically on the advice question, returning empty content.
+> **Eval status:** `openai/gpt-oss-120b`, both indices, 4 Nov 2026 —
+> numbers **15/15**, citations **15/15**, refusals **12/12**, retrieval
+> **2/2**. No failures.
+>
+> Three questions went unasked, against the free tier's 8,000 tokens/minute;
+> they are reported separately from failures, because a rate limit measures
+> the vendor rather than the model, and scoring it as a wrong answer would
+> claim a failure that never happened.
+>
+> Eval results belong to the model that produced them, not to this repository.
+> `gpt-oss-20b` failed the advice question deterministically, returning empty
+> content three times out of three.
+
+Two scoring bugs found by running this suite, both in the harness rather than
+the model, and both worth stating because they are the kind that flatter or
+libel a model silently:
+
+- **The advice refusal was marked wrong.** The prompt forbids trading advice
+  *and* demands an exact refusal string for absent data. Asked "should I buy
+  Nifty options?", the model declined in its own words — obeying the first
+  rule — and the scorer, checking only for the string, recorded a failure.
+  Each trap now carries the *shape* of refusal that counts as correct, and an
+  apologetic non-answer still fails a factual question.
+- **An empty reply was blamed on the provider.** `max_tokens` was 400, and a
+  reasoning model's thinking counts against it — measured at 113, 181 and
+  over 390 tokens for the same prompt at temperature 0. When it overran, the
+  answer came back blank and the harness reported "the provider refused the
+  call", sending a debugging session to the wrong place entirely. A blank is
+  now counted as this pipeline's failure, which it is.
 
 ---
 
 ## What is here
 
+<!-- AUTO:FILES -->
 | File | Lines | What it does |
 |---|---:|---|
-| `download.py` | 299 | Fetches NSE bhavcopies and index closes |
+| `download.py` | 312 | Fetches NSE bhavcopies and index closes |
 | `iv.py` | 149 | Black-Scholes and the Brent solve for IV |
-| `build.py` | 597 | Raw files → daily IV, event study, placebo |
+| `build.py` | 701 | Raw files → daily IV, event study, placebo |
 | `analysis.py` | 263 | Bootstrap intervals, placebo test, expected move |
-| `backtest.py` | 472 | The straddle rule, events against ordinary days |
-| `direction.py` | 355 | Sign tests, and volatility against direction |
-| `update.py` | 268 | Brings everything up to the last trading day |
-| `main.py` | 667 | FastAPI: the API and the question box |
+| `backtest.py` | 538 | The straddle rule, events against ordinary days |
+| `direction.py` | 363 | Sign tests, and volatility against direction |
+| `update.py` | 291 | Brings everything up to the last trading day |
+| `update_readme.py` | 468 | Regenerates this file's figures, and checks them in CI |
+| `main.py` | 738 | FastAPI: the API and the question box |
 | `rag.py` | 296 | PDF passages and BM25 retrieval |
-| `run_evals.py` | 398 | The four eval checks |
+| `run_evals.py` | 462 | The four eval checks |
 | `mcp_server.py` | 319 | MCP tools so an assistant can query the study |
-| `cpp/iv.cpp` | 218 | The solver again, in C++, for verification |
-| `bench.py` | 321 | Accuracy and speed, Python against C++ |
+| `cpp/iv.cpp` | 224 | The solver again, in C++, for verification |
+| `bench.py` | 348 | Accuracy and speed, Python against C++ |
 | `tests/` | 442 | 80 tests on the maths and the statistics |
 
 ```bash
 pytest          # 80 tests
 python bench.py # C++ against Python: agreement and speed
 ```
+<!-- /AUTO:FILES -->
 
 ---
 

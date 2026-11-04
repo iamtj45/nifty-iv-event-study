@@ -38,6 +38,13 @@ jobs:
       - name: Unit tests
         run: pytest -q
 
+      # The README's figures are generated from the result files. This fails
+      # if they have drifted, which is what makes the generation trustworthy
+      # rather than merely automatic -- a stale README now breaks the build
+      # instead of quietly contradicting the live site.
+      - name: README figures match the data
+        run: python update_readme.py --check
+
       # Needs no LLM key: it only checks that the search finds the right
       # document. Currently near-trivial with one PDF indexed, and it starts
       # meaning something as documents are added.
@@ -58,8 +65,15 @@ jobs:
           curl -sf http://127.0.0.1:8000/api/meta | python -c "
           import json,sys
           d = json.load(sys.stdin)
-          assert d['events'] == 29, d
+          # Floors, not exact counts. These numbers only ever grow: the
+          # nightly job adds trading days and events.csv gains a row each
+          # time RBI announces new dates. Asserting equality meant the first
+          # new meeting would fail CI with what reads like a regression, on
+          # a day nothing had regressed.
+          assert d['events'] >= 29, d
+          assert d['trading_days'] >= 969, d
           assert 'NIFTY' in d['indexes'], d
+          assert set(d['event_types']) >= {'RBI', 'BUDGET'}, d
           print('meta ok:', d['trading_days'], 'days,', d['events'], 'events')
           "
 
@@ -91,9 +105,19 @@ jobs:
           curl -sf http://127.0.0.1:8000/api/results?type=RBI | python -c "
           import json,sys
           d = json.load(sys.stdin)
-          assert len(d['events']) == 23, len(d['events'])
-          assert d['summary']['overpriced'] == 19, d['summary']
-          print('RBI ok:', d['summary']['avg_change_pct'], '% average change')
+          n = len(d['events'])
+          s = d['summary']
+          # A floor on the count, and consistency between the table and the
+          # summary computed from it. That still catches missing CSVs, broken
+          # index wiring and NaN reaching the JSON -- what this step is for --
+          # without pinning a figure that is meant to move.
+          assert n >= 23, n
+          assert s['n'] == n, (s['n'], n)
+          assert 0 <= s['overpriced'] <= n, s
+          assert s['avg_change_pct'] is not None, s
+          assert len(d['curve']) == 21, len(d['curve'])
+          print('RBI ok:', n, 'events,', s['overpriced'], 'overpriced,',
+                s['avg_change_pct'], '% average change')
           "
           curl -sf 'http://127.0.0.1:8000/api/results?type=RBI&index=BANKNIFTY' >/dev/null
           curl -sf http://127.0.0.1:8000/api/backtest >/dev/null

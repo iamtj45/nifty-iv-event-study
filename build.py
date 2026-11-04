@@ -359,9 +359,20 @@ def build_daily(spot_series, symbol=SYMBOL, only_days=None):
         if i % 100 == 0 or i == len(paths):
             print(f"  {i:>4}/{len(paths)} days  ({day})", flush=True)
 
-    daily = pd.DataFrame(records).sort_values("date").reset_index(drop=True)
-    quality_df = (pd.DataFrame(quality_rows)
-                  .sort_values("date").reset_index(drop=True))
+    # A --fast run with nothing new to solve produces no rows at all, and an
+    # empty DataFrame has no "date" column to sort by -- sorting it raises
+    # KeyError. That is a normal state, not an error: it happens every time
+    # this runs twice in a day, or on a holiday. The caller concatenates these
+    # onto the saved series, which does have the columns, so an empty frame
+    # with no columns at all concatenates cleanly.
+    daily = pd.DataFrame(records)
+    if not daily.empty:
+        daily = daily.sort_values("date").reset_index(drop=True)
+
+    quality_df = pd.DataFrame(quality_rows)
+    if not quality_df.empty:
+        quality_df = quality_df.sort_values("date").reset_index(drop=True)
+
     return daily, quality_df
 
 

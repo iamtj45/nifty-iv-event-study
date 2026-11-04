@@ -151,16 +151,21 @@ def clean(value):
     """
     if value is None:
         return None
+    # NaT first, and this order is not cosmetic. isinstance(pd.NaT,
+    # datetime.datetime) is True, so the date branch below catches NaT and
+    # pd.Timestamp(pd.NaT).date().isoformat() returns the *string* "NaT".
+    # That reaches the page as a date, and it slips past CI's NaN grep
+    # because the token is spelled differently. A missing date is null.
+    if value is pd.NaT or value is pd.NA:
+        return None
     if isinstance(value, (np.integer,)):
         return int(value)
     if isinstance(value, (np.floating, float)):
-       return None if np.isnan(value) else round(float(value),4) 
+        return None if np.isnan(value) else round(float(value), 4)
     if isinstance(value, (np.bool_, bool)):
         return bool(value)
     if isinstance(value, (pd.Timestamp, dt.date, dt.datetime)):
         return pd.Timestamp(value).date().isoformat()
-    if value is pd.NaT:
-        return None
     return value
 
 
@@ -175,14 +180,27 @@ def records(frame):
 # ---------------------------------------------------------------------------
 
 @app.get("/api/meta", summary="What this dataset covers")
-def meta():
-    """Enough for the page to label itself before any data is drawn."""
+def meta(index: str = Query(DEFAULT_INDEX, description="NIFTY or BANKNIFTY")):
+    """Enough for the page to label itself before any data is drawn.
+
+    The coverage figures are per index. They used to come from the Nifty
+    store whatever the reader was looking at, which was invisible only
+    because both indices happen to run to the same 969 days and 29 events --
+    it would have started lying the moment one of them moved.
+
+    The lists at the bottom are not per index: they describe what the server
+    has, which is what the page needs to build its switcher. Called with no
+    index at all this answers for Nifty, so Render's health check still works
+    as a bare GET.
+    """
+    store = store_for(index)
     return {
-        "first_date": STORE.first.isoformat(),
-        "latest_date": STORE.latest.isoformat(),
-        "trading_days": STORE.trading_days,
-        "event_types": STORE.types,
-        "events": len(STORE.results),
+        "index": store.index,
+        "first_date": store.first.isoformat(),
+        "latest_date": store.latest.isoformat(),
+        "trading_days": store.trading_days,
+        "event_types": store.types,
+        "events": len(store.results),
         # In INDEX_DIRS order, not alphabetical: Nifty is the study and Bank
         # Nifty is the corroboration, and the page shows them in that order.
         "indexes": [k for k in INDEX_DIRS if k in STORES],
@@ -248,12 +266,17 @@ def daily(
     """
     store = store_for(index)
     frame = store.daily
-    if start:
-        frame = frame[frame["date"] >= pd.Timestamp(start)]
-    elif not end:
-        frame = frame[frame["date"] >= store.daily["date"].max() - pd.Timedelta(days=730)]
+
+    # `end` is applied first, then the window is measured back from whatever
+    # is left. Asking for an end date alone used to skip the two-year default
+    # entirely and return the whole series from 2022 -- the one combination
+    # that ignored the cap it exists to enforce.
     if end:
         frame = frame[frame["date"] <= pd.Timestamp(end)]
+    if start:
+        frame = frame[frame["date"] >= pd.Timestamp(start)]
+    elif len(frame):
+        frame = frame[frame["date"] >= frame["date"].max() - pd.Timedelta(days=730)]
 
     frame = frame[["date", "atm_iv", "next_iv", "vix", "skew"]]
     both = frame[["atm_iv", "vix"]].dropna()
@@ -346,6 +369,14 @@ _ask_log: dict[str, list[float]] = {}
 
 def rate_limited(caller):
     now = time.time()
+    # Forget callers who have gone quiet. Without this the dict keeps one
+    # entry per visitor IP for the life of the process -- harmless at this
+    # traffic, unbounded in principle, and the kind of thing that is much
+    # easier to fix now than to diagnose later.
+    for who in [k for k, seen in _ask_log.items()
+                if not seen or now - seen[-1] >= 60]:
+        del _ask_log[who]
+
     recent = [t for t in _ask_log.get(caller, []) if now - t < 60]
     _ask_log[caller] = recent + [now]
     return len(recent) >= ASK_LIMIT_PER_MINUTE
@@ -525,6 +556,25 @@ RULES:
             f"QUESTION:\n{question}")
 
 
+# The ceiling on what the model may generate.
+#
+# 400 was far too low, and the reason is not obvious: a reasoning model spends
+# tokens thinking before it writes anything, and that thinking counts against
+# this number. Measured on "Will implied volatility fall at the next RBI
+# meeting?", the reasoning alone came to 113, 181 and over 390 tokens on three
+# runs of the same prompt at temperature 0 -- it is not deterministic. The
+# visible answer is 26 characters. So at 400 the model occasionally used the
+# whole budget thinking and had nothing left to say, returning an empty reply
+# with finish_reason "length". Intermittently blank, which is the worst kind
+# of broken.
+#
+# 1200 leaves room for the longest reasoning seen plus a full answer. The cost
+# is not the tokens themselves -- billing is on what is actually generated --
+# but some providers reserve this figure against a per-minute allowance, so it
+# is set with headroom rather than generously.
+MAX_OUTPUT_TOKENS = 1200
+
+
 def call_llm(prompt):
     """Send the prompt to whichever OpenAI-compatible provider is configured.
 
@@ -534,16 +584,25 @@ def call_llm(prompt):
 
     Temperature 0 asks for the most predictable answer the model can give.
     Creativity is worth nothing here and makes the evals flaky.
+
+    Returns
+    -------
+    (answer, error, reason) : the reason names *whose* problem it was, which
+        matters because the three cases need different responses. "provider"
+        is the vendor refusing or timing out -- wait and retry. "empty" is
+        the provider answering fine while the model emits no text, which is
+        a fault in this pipeline and must not be filed under the vendor's
+        name. "config" is a missing key or package. None on success.
     """
     key = os.environ.get("LLM_API_KEY")
     if not key:
         return None, ("The question box needs an LLM key. Set LLM_API_KEY and "
-                      "restart the server.")
+                      "restart the server."), "config"
 
     try:
         from openai import OpenAI
     except ImportError:
-        return None, "The openai package is not installed."
+        return None, "The openai package is not installed.", "config"
 
     # Accept-Encoding is pinned to gzip on purpose. The HTTP stack will
     # otherwise negotiate brotli, and an older brotli package than the HTTP
@@ -566,7 +625,7 @@ def call_llm(prompt):
             model=os.environ.get("LLM_MODEL", "gpt-4o-mini"),
             messages=[{"role": "user", "content": prompt}],
             temperature=0,
-            max_tokens=400,
+            max_tokens=MAX_OUTPUT_TOKENS,
         )
     except Exception as exc:
         # Report what went wrong, not just its type. "TypeError" alone says
@@ -576,23 +635,31 @@ def call_llm(prompt):
         detail = " ".join(str(exc).split())
         print(f"LLM call failed: {type(exc).__name__}: {detail}", file=sys.stderr)
         return None, (f"The language model could not be reached: "
-                      f"{type(exc).__name__} - {detail[:200]}")
+                      f"{type(exc).__name__} - {detail[:200]}"), "provider"
 
-    # Reasoning models sometimes put everything in a separate reasoning field
-    # and return empty content, with no error and finish_reason "stop". An
-    # empty string would reach the page as a blank answer box, and the eval
-    # harness would score it as a wrong answer when the model was never
-    # heard from. Treat it as a failed call, which is what it is.
-    message = reply.choices[0].message
-    answer = (message.content or "").strip()
+    # A reasoning model can return empty content with no error at all. Two
+    # causes, and finish_reason tells them apart:
+    #
+    #   "length"  it spent the whole MAX_OUTPUT_TOKENS budget thinking and had
+    #             nothing left to write. Raising the ceiling fixes it.
+    #   "stop"    it finished, but left content blank.
+    #
+    # Either way a blank answer box reaches the page. Reported as "empty"
+    # rather than "provider": the vendor answered perfectly well, and filing
+    # this under their name sends whoever reads the log to check their quota
+    # instead of this setting -- which is exactly what happened.
+    choice = reply.choices[0]
+    answer = (choice.message.content or "").strip()
     if not answer:
         print(f"LLM returned empty content "
-              f"(finish_reason={reply.choices[0].finish_reason})",
-              file=sys.stderr)
-        return None, ("The language model returned an empty answer. "
-                      "Please try again.")
+              f"(finish_reason={choice.finish_reason}, "
+              f"max_tokens={MAX_OUTPUT_TOKENS})", file=sys.stderr)
+        hint = (" It ran out of room to answer; raise MAX_OUTPUT_TOKENS."
+                if choice.finish_reason == "length" else "")
+        return None, ("The language model returned an empty answer." + hint
+                      + " Please try again."), "empty"
 
-    return answer, None
+    return answer, None, None
 
 
 # Characters the model reaches for occasionally whatever the prompt says.
@@ -631,9 +698,13 @@ def answer_question(question, index=DEFAULT_INDEX):
         passages = []
 
     prompt = build_prompt(question, results_table_text(), passages, index)
-    answer, error = call_llm(prompt)
+    answer, error, reason = call_llm(prompt)
     if error:
-        return {"answer": error, "sources": [], "available": False}
+        # `reason` travels with the error so run_evals.py can tell a vendor
+        # problem (wait and retry) from this pipeline returning nothing
+        # (a real failure). The page ignores it and just shows the message.
+        return {"answer": error, "sources": [], "available": False,
+                "reason": reason}
 
     return {
         "answer": tidy(answer),
@@ -654,7 +725,7 @@ def ask(payload: Question, request: Request):
     question = payload.question.strip()
     if not question:
         return {"answer": "Please type a question.", "sources": [],
-                "available": False}
+                "available": False, "reason": "no_question"}
     return answer_question(question, payload.index)
 
 

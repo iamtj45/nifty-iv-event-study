@@ -292,13 +292,40 @@ def main():
 
     # A single price both ways, before anything else. If this disagrees there
     # is no point measuring the solver.
-    from iv import CALL, bs_price
+    from iv import CALL, PUT, bs_price
     py_p = bs_price(24000.0, 24000.0, 30 / 365, RATE, 0.15, CALL)
     cp_p = lib.iv_bs_price(24000.0, 24000.0, 30 / 365, RATE, 0.15, KIND_CALL)
     print(f"  bs_price check: python {py_p:.10f}  c++ {cp_p:.10f}  "
           f"diff {abs(py_p - cp_p):.2e}")
 
     worst_all, bad = 0.0, 0
+
+    # Degenerate inputs, which the well-conditioned price above cannot reach.
+    # Both implementations are supposed to return NaN for every one of these,
+    # and for a long time the C++ side did not -- it priced a put on a
+    # worthless index at 23,872. One good point agreeing says nothing about
+    # the guards, so the guards get their own check.
+    print("\ndegenerate inputs (both must return NaN)")
+    degenerate = [
+        ("S = 0", 0.0, 24000.0, 30 / 365, 0.15),
+        ("S < 0", -100.0, 24000.0, 30 / 365, 0.15),
+        ("K = 0", 24000.0, 0.0, 30 / 365, 0.15),
+        ("K < 0", 24000.0, -50.0, 30 / 365, 0.15),
+        ("T = 0", 24000.0, 24000.0, 0.0, 0.15),
+        ("T < 0", 24000.0, 24000.0, -0.1, 0.15),
+        ("sigma = 0", 24000.0, 24000.0, 30 / 365, 0.0),
+        ("sigma < 0", 24000.0, 24000.0, 30 / 365, -0.2),
+    ]
+    for label, S, K, T, sigma in degenerate:
+        for py_kind, c_kind in ((CALL, KIND_CALL), (PUT, KIND_PUT)):
+            py = bs_price(S, K, T, RATE, sigma, py_kind)
+            cp = lib.iv_bs_price(S, K, T, RATE, sigma, c_kind)
+            ok = (py != py) and (cp != cp)        # both NaN
+            if not ok:
+                bad += 1
+                print(f"  {label:10} {py_kind}  python {py:>14.4f}  "
+                      f"c++ {cp:>14.4f}   DISAGREE")
+    print(f"  {len(degenerate) * 2} cases checked, {bad} disagreement(s)")
 
     w, d = compare("synthetic grid", lib, synthetic_set(), not args.no_percall)
     worst_all, bad = max(worst_all, w), bad + d

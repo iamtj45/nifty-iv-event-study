@@ -254,6 +254,15 @@ def main():
     for symbol in INDEXES:
         run(["direction.py", "--symbol", symbol], f"direction {symbol}")
 
+    # Last, because it reads what everything above just wrote. The README
+    # carried about forty hand-typed figures and went stale the first night
+    # this job ran -- 968 trading days had become 969, the placebo pool 448
+    # had become 450. None of those matter on their own, which is the
+    # problem: a page casually wrong about its own day count earns no trust
+    # on the 0.04 percentile. CI runs the same script with --check, so a
+    # stale README fails the build rather than being published quietly.
+    run(["update_readme.py"], "README figures")
+
     after = read_summaries()
     new_latest = latest_downloaded()
 

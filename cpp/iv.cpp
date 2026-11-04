@@ -70,8 +70,14 @@ inline double norm_cdf(double x) {
     return 0.5 * std::erfc(-x / std::sqrt(2.0));
 }
 
+// The guard list is iv.py's, condition for condition. S and K were missing
+// here, and the omission was invisible because log(S/K) returns NaN for a
+// negative input -- so S < 0 agreed by accident while S == 0 did not. At
+// S == 0 a put priced at 23,872 where Python correctly said undefined.
+// iv_implied_vol re-checks both below, so no implied volatility was ever
+// affected; this is the directly exported pricing function.
 double bs_price(double S, double K, double T, double r, double sigma, int kind) {
-    if (sigma <= 0.0 || T <= 0.0) return NAN_VALUE;
+    if (S <= 0.0 || K <= 0.0 || T <= 0.0 || sigma <= 0.0) return NAN_VALUE;
 
     const double sqrt_t = std::sqrt(T);
     const double d1 = (std::log(S / K) + (r + 0.5 * sigma * sigma) * T)
