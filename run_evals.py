@@ -245,7 +245,11 @@ def run_retrieval_checks(events):
         print(f"  skipped: {exc}")
         return 0, 0, []
 
-    docs = {p.name for p in (BASE / "docs").glob("*.pdf")}
+    # The index, not the PDFs. docs/*.pdf is gitignored, so a CI checkout has
+    # none of them -- globbing the folder there matched nothing, every event
+    # was skipped, and the step passed 0/0 having tested nothing. chunks.json
+    # is what is committed and what the deployed site searches.
+    docs = {c["doc"] for c in search.chunks}
     passed = total = 0
     failures = []
 
@@ -262,6 +266,11 @@ def run_retrieval_checks(events):
         else:
             got = ", ".join(sorted({h["doc"] for h in hits})) or "nothing"
             failures.append(f"    {expected}: not retrieved (got {got})")
+
+    # An empty index must not pass. 0/0 reads as success everywhere else.
+    if total == 0:
+        failures.append("    nothing tested -- the index holds no document "
+                        "matching an event in events.csv")
 
     return passed, total, failures
 

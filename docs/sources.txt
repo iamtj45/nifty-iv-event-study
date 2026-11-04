@@ -8,56 +8,89 @@
 #   KIND   RBI or BUDGET
 #   URL    a direct link to the PDF
 #
-# Where to find them:
-#
-#   RBI     rbi.org.in -> Press Releases -> the Monetary Policy Statement for
-#           that meeting. Open it, then copy the link to the PDF itself (the
-#           address should start with rbidocs.rbi.org.in and end in .PDF).
-#
-#   Budget  indiabudget.gov.in -> the year you want -> Budget Speech.
-#           Only the current year sits at a predictable address; older ones
-#           are in the archive section.
-#
-# Lines starting with # are ignored, so you can work through this list a few
-# at a time and re-run fetch_docs.py whenever you like. Already-downloaded
-# files are skipped.
+# All 28 documents for the 29 events in data/events.csv are listed below, in
+# the same order. Nothing here is downloaded until you run fetch_docs.py, and
+# files already in docs/ are skipped, so re-running it is safe and cheap.
 #
 # ---------------------------------------------------------------------------
-# One example, already filled in, so you can check the format works:
+# Where these came from, and how to add the next one.
+#
+# RBI. Each entry is the MPC *Resolution* -- not the Governor's Statement and
+# not the Minutes, which are separate press releases published alongside it.
+# The resolution is the document that states the repo rate, the stance and the
+# vote, which is what a question about a meeting is actually asking for.
+#
+# The filenames are opaque hashes with no pattern, so they cannot be
+# constructed -- each one has to be read off RBI's own listing. For a new
+# meeting: rbi.org.in -> Press Releases -> pick the month -> find "Monetary
+# Policy Statement, <year> Resolution of the Monetary Policy Committee" and
+# copy the address of the PDF icon beside it. It should start with
+# rbidocs.rbi.org.in and end in .PDF.
+#
+# The title carries the meeting's dates, e.g. "September 29 to October 1,
+# 2025". The DATE below is the *last* of those -- the announcement day, which
+# is the day events.csv records and the day the IV crush happens.
+#
+# Budget. Archived years sit at a stable address:
+#
+#     indiabudget.gov.in/budget<FY>/doc/Budget_Speech.pdf
+#
+# with "(I)" appended to the financial year for an interim budget, as in
+# budget2024-25(I). Note the capitals in Budget_Speech.pdf -- the server is
+# case-sensitive and the lowercase spelling 404s on the archived years.
+#
+# The current year is the exception: it is served from the site root at
+# /doc/Budget_Speech.pdf and moves to an archive path when the next Budget
+# replaces it. So the 2026-02-01 line below will need changing to
+# budget2026-27/doc/Budget_Speech.pdf once the 2027-28 Budget is presented.
+#
+# One caution. rbidocs.rbi.org.in sits behind a bot check that sometimes
+# answers a script with a JavaScript challenge instead of the PDF.
+# fetch_docs.py verifies that what came back really is a PDF and reports the
+# file as failed rather than saving the challenge page, so a run that reports
+# failures is usually worth simply retrying rather than debugging.
+#
+# Lines starting with # are ignored, so you can work through this a few at a
+# time if you prefer.
+# ---------------------------------------------------------------------------
 
+# 2023
+2023-02-01 | BUDGET | https://www.indiabudget.gov.in/budget2023-24/doc/Budget_Speech.pdf
+2023-02-08 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR1680701A840E83084999813D1AA1F86CA151.PDF
+2023-04-06 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR22B2D43114F3D24927ADCBA9B82B16387E.PDF
+2023-06-08 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR3643DFF6F8A3AE3429A826A641E1DF57844.PDF
+2023-08-10 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR723MPCBDE77DBC84204BAC85422FA0E28988A1.PDF
+2023-10-06 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR1052MPCA4D05BE856254A358DDF3ABB23E1BEC9.PDF
+2023-12-08 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR1438ABAF9AA87F6345369F5B387E1749E0F7.PDF
+
+# 2024
+2024-02-01 | BUDGET | https://www.indiabudget.gov.in/budget2024-25(I)/doc/Budget_Speech.pdf
+2024-02-08 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR1826MPCRESOLUTIONFEBRUARY2024632329A8D39644F28C5EA782119B99C3.PDF
+2024-04-05 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR42MPCRESOLUTIONAPR24211178E4E93843C5806A9949673CCBA4.PDF
+
+# 2024-06-04 | Election results -- no official document of this kind
+# exists, so it is deliberately not listed. Asked about it, the
+# question box says the document is not in the results rather than
+# reaching for something that only looks relevant.
+2024-06-07 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR453CDFC8E990AAE44398D61A08309F79665.PDF
+2024-07-23 | BUDGET | https://www.indiabudget.gov.in/budget2024-25/doc/Budget_Speech.pdf
+2024-08-08 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR851491EC642D77743A4BB8B0AAA838FE286.PDF
+2024-10-09 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR1252500AD1D6DF27491B900F3C41B7FAE460.PDF
+2024-12-06 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR1646070ADDB4ACC74D7C9D2A0AB85963802D.PDF
+
+# 2025
+2025-02-01 | BUDGET | https://www.indiabudget.gov.in/budget2025-26/doc/Budget_Speech.pdf
+2025-02-07 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR2094189B0DF105514A28A2FA834330E94B26.PDF
+2025-04-09 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR61C1724B25DB7646DFB49022F184DF3766.PDF
+2025-06-06 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR4894AE68CD2090049E59CE684ED07792E4E.PDF
+2025-08-06 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR84135FBEA1DD00D4D5BA6DA6CB3A94539C6.PDF
+2025-10-01 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR1216AA76708ADDD44FCFB57ABA32DC5BBEE0.PDF
 2025-12-05 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR16331051154700094ACFB40DE08AE141531C.PDF
 
-# ---------------------------------------------------------------------------
-# The remaining 28, in the same order as data/events.csv. Paste a URL after
-# the pipe and delete the # at the start of the line.
-
-# 2023-02-01 | BUDGET |
-# 2023-02-08 | RBI |
-# 2023-04-06 | RBI |
-# 2023-06-08 | RBI |
-# 2023-08-10 | RBI |
-# 2023-10-06 | RBI |
-# 2023-12-08 | RBI |
-# 2024-02-01 | BUDGET |
-# 2024-02-08 | RBI |
-# 2024-04-05 | RBI |
-# 2024-06-07 | RBI |
-# 2024-07-23 | BUDGET |
-# 2024-08-08 | RBI |
-# 2024-10-09 | RBI |
-# 2024-12-06 | RBI |
-# 2025-02-01 | BUDGET |
-# 2025-02-07 | RBI |
-# 2025-04-09 | RBI |
-# 2025-06-06 | RBI |
-# 2025-08-06 | RBI |
-# 2025-10-01 | RBI |
-# 2026-02-01 | BUDGET |
-# 2026-02-06 | RBI |
-# 2026-04-08 | RBI |
-# 2026-06-05 | RBI |
-# 2026-08-05 | RBI |
-# 2026-10-07 | RBI |
-
-# Note: the 2024 election result (2024-06-04) has no official document of this
-# kind, so it is not listed. The question box will say so rather than guess.
+# 2026
+2026-02-01 | BUDGET | https://www.indiabudget.gov.in/doc/Budget_Speech.pdf
+2026-02-06 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR20530D3EAF28B417497981BA800A7B3C0DCC.PDF
+2026-04-08 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR36179ED854C2504530A4E69A95E76CF144.PDF
+2026-06-05 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR3855508EB4A59FF46F9B57BBA200AA250B8.PDF
+2026-08-05 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR80907599DE5FD164918A49085C9D6270116.PDF
+2026-10-07 | RBI | https://rbidocs.rbi.org.in/rdocs/PressRelease/PDFs/PR1264BEFCD8B9DE724239B1746EC9020C02AF.PDF

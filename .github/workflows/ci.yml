@@ -46,8 +46,9 @@ jobs:
         run: python update_readme.py --check
 
       # Needs no LLM key: it only checks that the search finds the right
-      # document. Currently near-trivial with one PDF indexed, and it starts
-      # meaning something as documents are added.
+      # document out of the 28 indexed, most of them RBI resolutions worded
+      # almost identically. It reads data/chunks.json rather than docs/, which
+      # is gitignored -- globbing docs/ here tested nothing and passed 0/0.
       - name: Retrieval evals
         run: python run_evals.py --retrieval-only
 

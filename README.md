@@ -230,7 +230,12 @@ including real dates on which no event happened), and **retrieval**.
 
 > **Eval status:** `openai/gpt-oss-120b`, both indices, 4 Nov 2026 —
 > numbers **15/15**, citations **15/15**, refusals **12/12**, retrieval
-> **2/2**. No failures.
+> **28/28** per index. No failures.
+>
+> Retrieval covers all 28 documents, which is what makes it worth quoting:
+> picking the right meeting out of 23 near-identically worded RBI
+> resolutions is a real test, where 1/1 against a single PDF was not. The
+> other three checks were measured while one document was indexed.
 >
 > Three questions went unasked, against the free tier's 8,000 tokens/minute;
 > they are reported separately from failures, because a rate limit measures
@@ -275,7 +280,7 @@ libel a model silently:
 | `update_readme.py` | 468 | Regenerates this file's figures, and checks them in CI |
 | `main.py` | 738 | FastAPI: the API and the question box |
 | `rag.py` | 296 | PDF passages and BM25 retrieval |
-| `run_evals.py` | 462 | The four eval checks |
+| `run_evals.py` | 471 | The four eval checks |
 | `mcp_server.py` | 319 | MCP tools so an assistant can query the study |
 | `cpp/iv.cpp` | 224 | The solver again, in C++, for verification |
 | `bench.py` | 348 | Accuracy and speed, Python against C++ |
