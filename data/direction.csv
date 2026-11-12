@@ -1,5 +1,5 @@
 type,n,up,down,unchanged,pct_up,mean_move,median_move,ci_low,ci_high,sign_test_p,placebo_percentile,verdict
-RBI,23,11,12,0,47.8,0.2424,-0.0042,-0.1272,0.7002,1.0,91.89,indistinguishable from a coin
-BUDGET,5,0,5,0,0.0,-0.516,-0.13,-1.2477,-0.12,0.0625,5.1,too few events (5) to say anything
+RBI,23,11,12,0,47.8,0.2424,-0.0042,-0.1272,0.7002,1.0,91.99,indistinguishable from a coin
+BUDGET,5,0,5,0,0.0,-0.516,-0.13,-1.2477,-0.12,0.0625,5.04,too few events (5) to say anything
 ELECTION,1,0,1,0,0.0,-5.9294,-5.9294,,,1.0,,too few events (1) to say anything
-ORDINARY,455,250,204,1,55.1,0.024,0.0649,-0.0441,0.0918,0.0346,,the baseline every group is measured against
+ORDINARY,457,252,204,1,55.3,0.0261,0.0779,-0.0415,0.0938,0.0276,,the baseline every group is measured against
