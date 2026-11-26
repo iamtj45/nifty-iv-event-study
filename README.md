@@ -12,12 +12,12 @@ direction, and could you have traded it.
 
 <!-- AUTO:COVERAGE -->
 ```
-984 trading days   1 Dec 2022 – 25 Nov 2026
+985 trading days   1 Dec 2022 – 26 Nov 2026
 29 events          23 RBI · 5 Budget · 1 election
 2 indices          Nifty 50 and Bank Nifty
 ```
 
-*Figures throughout are as of 25 Nov 2026, the last trading day in the data.
+*Figures throughout are as of 26 Nov 2026, the last trading day in the data.
 They are regenerated from the result files by `update_readme.py`, and CI fails
 if they drift — so this page and the live site cannot disagree.*
 <!-- /AUTO:COVERAGE -->
@@ -42,13 +42,13 @@ On the day itself implied volatility fell **5.62%** on average.
 ### 2. It is not chance
 
 <!-- AUTO:PLACEBO -->
-A placebo test takes 465 ordinary trading days — at least ten days from any
+A placebo test takes 466 ordinary trading days — at least ten days from any
 event — draws 23 of them at random, averages, and repeats 10,000 times.
 
 ```
-RBI        0.02 percentile      none of 10,000 random groups were as extreme
+RBI        0.03 percentile      none of 10,000 random groups were as extreme
 Budget     0.00 percentile
-Election  98.88 percentile      went the other way, as expected
+Election  98.98 percentile      went the other way, as expected
 ```
 
 The 95% confidence range on the RBI crush is **−8.88% to −2.70%** — entirely
@@ -61,9 +61,9 @@ below zero.
 | | up | down | % up | coin-flip p |
 |---|---:|---:|---:|---:|
 | RBI days | 11 | 12 | 47.8% | 1.000 |
-| ordinary days | 257 | 207 | 55.4% | 0.023 |
+| ordinary days | 258 | 207 | 55.5% | 0.020 |
 
-Ordinary days rise 55.4% of the time — the slow upward drift of equities. RBI
+Ordinary days rise 55.5% of the time — the slow upward drift of equities. RBI
 days rise 47.8%. **Knowing a meeting is tomorrow leaves you with less
 directional information than an ordinary Tuesday.** The decision is in the
 price before it is announced.
@@ -80,17 +80,17 @@ before, buy it back at the close on the event day. Profit in index points.
 | RBI | 23 | −3.02 | 56.5% | −181.93 | **0.12** |
 | Budget | 5 | +85.63 | 80.0% | −114.50 | 89.10 |
 | Election | 1 | −722.36 | 0.0% | −722.36 | −716.80 |
-| **ordinary days** | 465 | +1.21 | 62.2% | −429.00 | **4.29** |
+| **ordinary days** | 466 | +1.32 | 62.2% | −429.00 | **4.40** |
 
 "Break-even cost" is profit before any fees — which is also exactly the
 round-trip cost at which the rule stops paying.
 
 **Selling before RBI meetings earned 0.12 points before costs. Selling on a
-random Tuesday earned 4.29.** The event trade is worse than trading at random,
+random Tuesday earned 4.40.** The event trade is worse than trading at random,
 because event days also *move* more, and the extra movement costs the seller
 more than the collapsing volatility pays.
 
-The worst single trade of all 494 was the election result: 4 Jun 2024, −722
+The worst single trade of all 495 was the election result: 4 Jun 2024, −722
 points. The worst ordinary day lost −429 — a deeper hole than any RBI meeting
 produced, on a day when nothing was scheduled at all.
 <!-- /AUTO:BACKTEST -->
@@ -100,8 +100,8 @@ produced, on a day when nothing was scheduled at all.
 <!-- AUTO:VOLDIR -->
 | | correlation | days |
 |---|---:|---:|
-| IV change vs **same-day** return | **−0.4994** | 983 |
-| IV change vs **next-day** return | +0.0321 | 982 |
+| IV change vs **same-day** return | **−0.4994** | 984 |
+| IV change vs **next-day** return | +0.0320 | 983 |
 
 On days volatility rose, the market fell **62%** of the time. On days it fell,
 the market rose **66%** of the time.
@@ -124,7 +124,7 @@ near-dated strike.
 ```
 our ATM IV       12.78
 India VIX        13.85
-correlation      0.9155   over 975 overlapping days
+correlation      0.9156   over 976 overlapping days
 ```
 
 The ~1 point gap is expected and, importantly, **steady**. A broken solver
@@ -133,7 +133,7 @@ between two methods measuring slightly different things is what correctness
 looks like.
 
 **Bank Nifty corroborates independently.** Run through the same pipeline it
-gives 15.04% mean IV against Nifty's 12.78% — higher, as a single-sector index
+gives 15.05% mean IV against Nifty's 12.78% — higher, as a single-sector index
 should be — and reaches the same conclusions: overpriced 21 of 23, placebo
 0.04, and a straddle trade that *loses* 19.1 points before costs.
 

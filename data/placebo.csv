@@ -1,4 +1,4 @@
 type,n_events,avg_change_pct,normal_days,normal_mean_change_pct,percentile_vs_normal
-BUDGET,5,-14.7390,465,0.7025,0.0000
-ELECTION,1,33.6962,465,0.7025,98.8800
-RBI,23,-5.6171,465,0.7025,0.0200
+BUDGET,5,-14.7390,466,0.6867,0.0000
+ELECTION,1,33.6962,466,0.6867,98.9800
+RBI,23,-5.6171,466,0.6867,0.0300
