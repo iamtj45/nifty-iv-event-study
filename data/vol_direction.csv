@@ -1,7 +1,7 @@
 measure,horizon,value,n,note
-correlation of IV change with Nifty return,same day,-0.4994,984,strongly negative: fear rising and the market falling are the same event seen two ways
+correlation of IV change with Nifty return,same day,-0.4984,985,strongly negative: fear rising and the market falling are the same event seen two ways
 "Nifty market fell, on days IV rose",same day,61.8,455,average return -0.261%
-"Nifty market rose, on days IV fell",same day,66.0,529,average return +0.291%
-correlation of IV change with the NEXT day's return,next day,0.032,983,about zero: today's fear says nothing about tomorrow
+"Nifty market rose, on days IV fell",same day,65.8,530,average return +0.289%
+correlation of IV change with the NEXT day's return,next day,0.0328,984,about zero: today's fear says nothing about tomorrow
 Nifty market rose the day after the biggest 10% of IV spikes,next day,54.5,99,average return +0.113%
-Nifty market rose the day after any day (baseline),next day,53.2,983,"compare with the row above: the difference is the whole predictive value, and it is small"
+Nifty market rose the day after any day (baseline),next day,53.2,984,"compare with the row above: the difference is the whole predictive value, and it is small"
